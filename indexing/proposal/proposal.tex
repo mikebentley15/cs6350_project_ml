@@ -1,0 +1,38 @@
+\documentclass{article}
+
+\author{
+  Michael Bentley \& Jackson Pontsler \\
+  CS 6350 - Machine Learning
+  }
+\title{
+  Machine Learning Project \\
+  Automate Indexing of Historical Documents
+  }
+\date{\today}
+
+\setlength{\parskip}{1em}
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+\maketitle
+
+My classmate Jackson and I are proposing to do an application of machine learning to the problem of indexing old family history documents, more specifically extracting and digitizing records and information in scanned documents from the LDS family history services such as birth or death certificates.  It is a huge effort that is almost exclusively manually performed. We wish to explore applying machine learning to basically read this old handwritten text, in these images, to automate this effort. To make this a viable project, we plan to significantly limit scope to say a particular form layout and maybe one or two features, such as gender or date of birth.
+
+We are trying to contact LDS family history services currently.  We are unsure of the data they will be able to provide.  We think cost-sensitive learning may be applicable here since there are some indexers that have a much higher level of experience than others, and hopefully we can obtain that data along with the labeled data.  We also wish to learn about and explore the use of deep learning to create our classifier.
+
+\end{document}
+
+
+% ------------------------------------
+%
+% Original version
+%
+% ------------------------------------
+% 
+% My classmate Micheal and I are proposing to do an application of machine learning to help predict the accuracy of the index data from the LDS family history services.  We will try to predict a single feature i.e."sex" or "date of birth" on a image.
+% 
+% We will use data that tells us the number of people that looked over a feature on an image, the level of skill (novice,intermediate,expert) of the reviewers, their decisions, and the final decision. The feature will be printed on images of records and our project will look over the image see what experts and novices say and attempt to guess what the image says and compare it to what the actual label is based on the experts and labels provided in the data.  We hope that by doing this we may be able to rapidly increase the slow pace normally done by visually observing these images and attempting to decipher a persons handwriting.
+% 
+% We plan of exploring various machine learning algorithms to predict the label, one of them will be a weight KNN that will assign votes based on the level of the reviewer.  i.e. a expert will get 7 votes, intermediate will get 4, novice will get 1.
+% 
