@@ -1,0 +1,41 @@
+\documentclass[12pt]{article}
+\usepackage[margin=2cm]{geometry}
+\usepackage{enumitem}
+
+\setlist{nosep} % or \setlist{noitemsep} to leave space around whole list
+
+\title{Machine Learning Intermediate Project Report}
+\author{
+  CS 6350 Machine Learning \\
+  Jackson Pontsler, Michael Bentley
+  }
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Problem}
+
+Develop a machine learning algorithm that can classify a few of the classification fields of a handwritten census record.  Such classification fields may be gender, ethnicity, or merital status.
+
+\section{What has been done}
+
+We have contacted Family Services of the Church of Jesus Christ of Latter-Day Saints to gather labeled and unlabeled scanned images.  We have signed and returned their non-disclosure agreement and they have sent us a large set of data (2.3 GB compressed zip file).  We have not yet looked through the data.  We are told that it consists of 1,650 images from the 1930 census with putative bounding boxes for the image regions where the features are to be extracted.  We are also told that there are multiple labelings of the data of which we may make use (in order of labeling accuracy):
+\begin{enumerate}
+  %\itemsep0pt
+  \item A groundtruth set at 99.5\% accuracy
+  \item A set that was indexed using the FamilySearch Indexing process: two independent manual indexers and an experienced arbitrator to handle conflicts \cite{hansen2013quality}
+  \item Putative labeling from a separate company
+\end{enumerate}
+We have asked for, but don't know if it is included in this dataset, some measure of the experience level or accuracy of the indexers from label set 2.  We hope to use cost-sensitive learning to give more credence to the labels given by the more accurate and experienced indexers and hopefully gain a better classifier than if we take labeled data set 2 as-is.
+
+Dustin Webb, a PhD. student, suggested for us to use a convolutional neural network deep learning algorithm.  There are many resources explaining convolutional neural networks including \cite{Bengio-et-al-2015-Book} \cite{kavukcuoglu2010learning} \cite{krizhevsky2012imagenet}.
+
+After talking with the PhD student Dustin Webb, we were instructed to look into deep learning via a convolutional neural network.  One of the reasons why convolutional neural networks are so powerful is because it is a deep learning algorithm that teaches itself what needs to be learned and then learns it.  This had advantages because when reading common features of classify values only a few we available (reflective over an x axis, reflective over a y axis, which vertical half has the majority of the pixels, and which horizontal half has the majority of the pixels) this list of features is clearly not nearly enough;
+
+\bibliographystyle{plain}
+\bibliography{intermediate-report}
+
+\end{document}
+
