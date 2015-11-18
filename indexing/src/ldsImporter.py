@@ -1,4 +1,6 @@
 from collections import namedtuple
+import glob
+import libxml2 as xml
 
 # BoundingBox:
 #   top     (int) Top of the box
@@ -56,27 +58,181 @@ class ImageData(object):
         self.companyRecords = []
         self.boundingBoxes = []
 
-    def parseTrueXml(filepath):
+    def parseTrueXml(self,filepath):
         '''
         Populates the self.trueRecords list (appending)
         '''
-        pass
+        doc=xml.parseFile(filepath)
+        headeritem=doc.xpathEval('//header-item')
+        sex=[]
+        race=[]
+        married=[]
+        linenum=[]
+        r=[]
+        for k in range(len(headeritem)):
+            h=headeritem[k]
+            if getAttributeContents(h,'name')=="PR_SEX":
+                sex.append(h.get_content().strip())
+            if getAttributeContents(h,'name')=="PR_RACE_OR_COLOR":
+                race.append(h.get_content().strip())
+            if getAttributeContents(h,'name')=="PR_MARITAL_STATUS":
+                married.append(h.get_content().strip())
+            if getAttributeContents(h,'name')=="LINE_NBR":
+                linenum.append(int(h.get_content().strip()))
+        for x in range(len(linenum)):
+            r=Record(linenum[x],sex[x],race[x],married[x])
+            self.trueRecords.append(r)
 
-    def parseAbarbXml(filepath):
+    def parseAbarbXml(self,filepath):
         '''
         Populates the self.aRecords, self.bRecords, and self.arbRecords lists (appending)
         '''
+        doc=xml.parseFile(filepath):
+        aItems = doc.xpathEval('//headera/header-item')
+        sex=[]
+        race=[]
+        married=[]
+        linenum=[]
+        for k in range(len(aItems)):
+            h=aItems[k]
+            if getAttributeContents(h,'name')=="PR_SEX":
+                sex.append(h.get_content().strip())
+            if getAttributeContents(h,'name')=="PR_RACE_OR_COLOR":
+                race.append(h.get_content().strip())
+            if getAttributeContents(h,'name')=="PR_MARITAL_STATUS":
+                married.append(h.get_content().strip())
+            if getAttributeContents(h,'name')=="LINE_NBR":
+                linenum.append(int(h.get_content().strip()))
+        for x in range(len(linenum)):
+            r=Record(linenum[x],sex[x],race[x],married[x])
+            self.aRecords.append(r)
+        bItems = doc.xpathEval('//headerb/header-item')
+        sex=[]
+        race=[]
+        married=[]
+        linenum=[]
+        for k in range(len(bItems)):
+            h=bItems[k]
+            if getAttributeContents(h,'name')=="PR_SEX":
+                sex.append(h.get_content().strip())
+            if getAttributeContents(h,'name')=="PR_RACE_OR_COLOR":
+                race.append(h.get_content().strip())
+            if getAttributeContents(h,'name')=="PR_MARITAL_STATUS":
+                married.append(h.get_content().strip())
+            if getAttributeContents(h,'name')=="LINE_NBR":
+                linenum.append(int(h.get_content().strip()))
+        for x in range(len(linenum)):
+            r=Record(linenum[x],sex[x],race[x],married[x])
+            self.bRecords.append(r)
+        Items = doc.xpathEval('//header/header-item')
+        sex=[]
+        race=[]
+        married=[]
+        linenum=[]
+        for k in range(len(Items)):
+            h=Items[k]
+            if getAttributeContents(h,'name')=="PR_SEX":
+                sex.append(h.get_content().strip())
+            if getAttributeContents(h,'name')=="PR_RACE_OR_COLOR":
+                race.append(h.get_content().strip())
+            if getAttributeContents(h,'name')=="PR_MARITAL_STATUS":
+                married.append(h.get_content().strip())
+            if getAttributeContents(h,'name')=="LINE_NBR":
+                linenum.append(int(h.get_content().strip()))
+        for x in range(len(linenum)):
+            r=Record(linenum[x],sex[x],race[x],married[x])
+            self.arbRecords.append(r)
         pass
 
-    def parseCompanyXml(filepath):
+    def parseCompanyXml(self,filepath):
         '''
         Populates the self.companyRecords and self.boundingBoxes lists (appending)
         '''
-        pass
+        doc=xml.parseFile(filepath)
+        sex=[]
+        linenum=[]
+        race=[]
+        married=[]
+        linenbr=doc.xpathEval('//record/LINE_NBR')
+        gender=doc.xpathEval('//record/PR_SEX')
+        ethnic=doc.xpathEval('//record/PR_RACE_OR_COLOR')
+        marital=doc.xpathEval('//record/MARITAL_STATUS')
+        for i in range(len(linebr)):
+            h=linenbr[i]
+            linenum.append(h.get_content().strip())
+            h=gender[i]
+            sex.append(h.get_content().strip())
+            h=ethnic[i]
+            race.append(h.get_content().strip())
+            h=marital[i]
+            married.append(h.get_content().strip())
+        for x in range(len(linenum)):
+            r=Record(linenum[x],sex[x],race[x],married[x])
+            self.companyRecords.append(r)
+        # Get the bounding Boxes
+        stop=[]
+        sleft=[]
+        sright=[]
+        sbottom=[]
+        rtop=[]
+        rleft=[]
+        rright=[]
+        rbottom=[]
+        mtop=[]
+        mleft=[]
+        mright=[]
+        mbottom=[]
+        box=doc.xpathEval('//record/PR_SEX/RecoZone')
+        for j in range(len(box)):
+            BB=box[j]
+            sbottom.append(int(getAttributeContents(BB,'Bottom')))
+            stop.append(int(getAttributeContents(BB,'Top')))
+            sleft.append(int(getAttributeContents(BB,'Left')))
+            sright.append(int(getAttributeContents(BB,'Right')))
+        box=doc.xpathEval('//record/PR_RACE_OR_COLOR/RecoZone')
+        for j in range(len(box)):
+            BB=box[j]
+            rbottom.append(int(getAttributeContents(BB,'Bottom')))
+            rtop.append(int(getAttributeContents(BB,'Top')))
+            rleft.append(int(getAttributeContents(BB,'Left')))
+            rright.append(int(getAttributeContents(BB,'Right')))
+        box=doc.xpathEval('//record/MARITAL_STATUS/RecoZone')
+        for j in range(len(box)):
+            BB=box[j]
+            mbottom.append(int(getAttributeContents(BB,'Bottom')))
+            mtop.append(int(getAttributeContents(BB,'Top')))
+            mleft.append(int(getAttributeContents(BB,'Left')))
+            mright.append(int(getAttributeContents(BB,'Right')))
+        #Form Bounding Boxes
+        sexbox=[]
+        racebox=[]
+        marriedbox=[]
+        for j in range(len(sbottom)):
+            h=BoundingBox(stop[j],sbottom[j],sleft[j],sright[j])
+            sexbox.append(h) #its only awkward if you make it
+            h=BoundingBox(rtop[j],rbottom[j],rleft[j],rright[j])
+            racebox.append(h) #see previous comment
+            h=BoundingBox(mtop[j],mbottom[j],mleft[j],mright[j])
+            marriedbox.append(h)
+        for j in range(len(linenum))
+            self.boundingBoxes.append(RecordBoundingBoxes(linenum[j],sexbox[j],racebox[j],marriedbox[j]))
 
 def readFiles(directory):
     '''
     Reads the files from the given directory and returns a list of ImageData objects
     '''
-    pass
+    path='cs6350_project_ml/church-data/'
+    namelist=glob.glob(path+'*.jpg')
+    newname=[]
+    Objects=[]
+    for y in range(len(namelist)):
+        newname.append(namelist[y].replace("jpg",""))
+        for y in range(len(newname)):
+            Object1=ImageData(newname[y])
+            Object1.parseTrueXml(newname[y]+'truth.xml')
+            Object1.parseAbarbXml(newname[y]+'origABARB.xml')
+            Object1.parseCompanyXml(newname[y]+'hypBboxes.xml.filtered')
+            Objects.append(Object1)
+    return Objects
+
 
