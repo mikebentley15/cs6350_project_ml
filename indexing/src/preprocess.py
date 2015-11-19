@@ -79,11 +79,16 @@ def main(arguments):
             writer.writerow(headerRow)
             for imageData in data:
                 count = len(imageData.trueRecords)
-                assert count == len(imageData.aRecords), 'aRecords count mistmatch: {0} != {1}'.format(count, len(imageData.aRecords))
-                assert count == len(imageData.bRecords), 'bRecords count mistmatch: {0} != {1}'.format(count, len(imageData.bRecords))
-                assert count == len(imageData.arbRecords), 'arbRecords count mistmatch: {0} != {1}'.format(count, len(imageData.arbRecords))
-                assert count == len(imageData.companyRecords), 'companyRecords count mistmatch: {0} != {1}'.format(count, len(imageData.companyRecords))
-                assert count == len(imageData.boundingBoxes), 'boundingBoxes count mistmatch: {0} != {1}'.format(count, len(imageData.boundingBoxes))
+                assert count == len(imageData.aRecords), \
+                    'aRecords count mistmatch: {0} != {1}'.format(count, len(imageData.aRecords))
+                assert count == len(imageData.bRecords), \
+                    'bRecords count mistmatch: {0} != {1}, file={2}'.format(count, len(imageData.bRecords), imageData.imagePath)
+                assert count == len(imageData.arbRecords), \
+                    'arbRecords count mistmatch: {0} != {1}'.format(count, len(imageData.arbRecords))
+                assert count == len(imageData.companyRecords), \
+                    'companyRecords count mistmatch: {0} != {1}'.format(count, len(imageData.companyRecords))
+                assert count == len(imageData.boundingBoxes), \
+                    'boundingBoxes count mistmatch: {0} != {1}'.format(count, len(imageData.boundingBoxes))
                 lines = set(x.line for x in imageData.trueRecords)
                 # Make a row in the csv file per line
                 for line in sorted(lines):

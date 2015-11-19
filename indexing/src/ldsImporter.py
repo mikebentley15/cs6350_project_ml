@@ -235,15 +235,12 @@ def readFiles(directory):
     Reads the files from the given directory and returns a list of ImageData objects
     '''
     namelist = glob.glob(directory + '/*.jpg')
-    newname = []
-    objects = []
     for y in xrange(len(namelist)):
-        newname.append(namelist[y].replace("jpg", ""))
-        for y in xrange(len(newname)):
-            obj = ImageData(newname[y])
-            obj.parseTrueXml(newname[y]+'truth.xml')
-            obj.parseAbarbXml(newname[y]+'origABARB.xml')
-            obj.parseCompanyXml(newname[y]+'hypBboxes.xml.filtered')
-            yield obj
+        newname = namelist[y].replace("jpg", "")
+        obj = ImageData(namelist[y])
+        obj.parseTrueXml(newname + 'truth.xml')
+        obj.parseAbarbXml(newname + 'origABARB.xml')
+        obj.parseCompanyXml(newname + 'hypBboxes.xml.filtered')
+        yield obj
 
 
