@@ -124,14 +124,15 @@ class ImageData(object):
             similarRecords = doc.xpathEval('//headerb/header-item[@record="{0}"]'.format(recordNum))
             if lineItem.get_content().strip() == '':
                 continue
-            if getAttributeContents(h, 'name') == "PR_SEX":
-                sex.append(h.get_content().strip())
-            if getAttributeContents(h, 'name') == "PR_RACE_OR_COLOR":
-                race.append(h.get_content().strip())
-            if getAttributeContents(h, 'name') == "PR_MARITAL_STATUS":
-                married.append(h.get_content().strip())
-            if getAttributeContents(h, 'name') == "LINE_NBR":
-                linenum.append(int(h.get_content().strip()))
+            for h in similarRecords:
+                if getAttributeContents(h, 'name') == "PR_SEX":
+                    sex.append(h.get_content().strip())
+                if getAttributeContents(h, 'name') == "PR_RACE_OR_COLOR":
+                    race.append(h.get_content().strip())
+                if getAttributeContents(h, 'name') == "PR_MARITAL_STATUS":
+                    married.append(h.get_content().strip())
+                if getAttributeContents(h, 'name') == "LINE_NBR":
+                    linenum.append(int(h.get_content().strip()))
         for x in xrange(len(linenum)):
             r = Record(linenum[x], sex[x], race[x], married[x])
             self.bRecords.append(r)
@@ -145,14 +146,15 @@ class ImageData(object):
             similarRecords = doc.xpathEval('//header/header-item[@record="{0}"]'.format(recordNum))
             if lineItem.get_content().strip() == '':
                 continue
-            if getAttributeContents(h, 'name') == "PR_SEX":
-                sex.append(h.get_content().strip())
-            if getAttributeContents(h, 'name') == "PR_RACE_OR_COLOR":
-                race.append(h.get_content().strip())
-            if getAttributeContents(h, 'name') == "PR_MARITAL_STATUS":
-                married.append(h.get_content().strip())
-            if getAttributeContents(h, 'name') == "LINE_NBR":
-                linenum.append(int(h.get_content().strip()))
+            for h in similarRecords:
+                if getAttributeContents(h, 'name') == "PR_SEX":
+                    sex.append(h.get_content().strip())
+                if getAttributeContents(h, 'name') == "PR_RACE_OR_COLOR":
+                    race.append(h.get_content().strip())
+                if getAttributeContents(h, 'name') == "PR_MARITAL_STATUS":
+                    married.append(h.get_content().strip())
+                if getAttributeContents(h, 'name') == "LINE_NBR":
+                    linenum.append(int(h.get_content().strip()))
         for x in xrange(len(linenum)):
             r = Record(linenum[x], sex[x], race[x], married[x])
             self.arbRecords.append(r)
