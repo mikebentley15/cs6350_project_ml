@@ -74,8 +74,7 @@ class ImageData(object):
         married = []
         linenum = []
         r = []
-        for k in range(len(headeritem)):
-            h = headeritem[k]
+        for h in headeritem:
             if getAttributeContents(h, 'name') == "PR_SEX":
                 sex.append(h.get_content().strip())
             if getAttributeContents(h, 'name') == "PR_RACE_OR_COLOR":
@@ -84,7 +83,7 @@ class ImageData(object):
                 married.append(h.get_content().strip())
             if getAttributeContents(h, 'name') == "LINE_NBR":
                 linenum.append(int(h.get_content().strip()))
-        for x in range(len(linenum)):
+        for x in xrange(len(linenum)):
             r = Record(linenum[x], sex[x], race[x], married[x])
             self.trueRecords.append(r)
 
@@ -112,7 +111,7 @@ class ImageData(object):
                     married.append(h.get_content().strip())
                 if getAttributeContents(h, 'name') == "LINE_NBR":
                     linenum.append(int(h.get_content().strip()))
-        for x in range(len(linenum)):
+        for x in xrange(len(linenum)):
             r = Record(linenum[x], sex[x], race[x], married[x])
             self.aRecords.append(r)
         bItems = doc.xpathEval('//headerb/header-item[@name="LINE_NBR"]')
@@ -133,7 +132,7 @@ class ImageData(object):
                 married.append(h.get_content().strip())
             if getAttributeContents(h, 'name') == "LINE_NBR":
                 linenum.append(int(h.get_content().strip()))
-        for x in range(len(linenum)):
+        for x in xrange(len(linenum)):
             r = Record(linenum[x], sex[x], race[x], married[x])
             self.bRecords.append(r)
         items = doc.xpathEval('//header/header-item[@name="LINE_NBR"]')
@@ -154,7 +153,7 @@ class ImageData(object):
                 married.append(h.get_content().strip())
             if getAttributeContents(h, 'name') == "LINE_NBR":
                 linenum.append(int(h.get_content().strip()))
-        for x in range(len(linenum)):
+        for x in xrange(len(linenum)):
             r = Record(linenum[x], sex[x], race[x], married[x])
             self.arbRecords.append(r)
 
@@ -171,7 +170,7 @@ class ImageData(object):
         gender = doc.xpathEval('//record/PR_SEX')
         ethnic = doc.xpathEval('//record/PR_RACE_OR_COLOR')
         marital = doc.xpathEval('//record/MARITAL_STATUS')
-        for i in range(len(linenbr)):
+        for i in xrange(len(linenbr)):
             h = linenbr[i]
             linenum.append(h.get_content().strip())
             h = gender[i]
@@ -180,7 +179,7 @@ class ImageData(object):
             race.append(h.get_content().strip())
             h = marital[i]
             married.append(h.get_content().strip())
-        for x in range(len(linenum)):
+        for x in xrange(len(linenum)):
             r = Record(linenum[x], sex[x], race[x], married[x])
             self.companyRecords.append(r)
         # Get the bounding Boxes
@@ -197,21 +196,21 @@ class ImageData(object):
         mright = []
         mbottom = []
         box = doc.xpathEval('//record/PR_SEX/RecoZone')
-        for j in range(len(box)):
+        for j in xrange(len(box)):
             bb = box[j]
             sbottom.append(int(getAttributeContents(bb, 'Bottom')))
             stop.append(int(getAttributeContents(bb, 'Top')))
             sleft.append(int(getAttributeContents(bb, 'Left')))
             sright.append(int(getAttributeContents(bb, 'Right')))
         box = doc.xpathEval('//record/PR_RACE_OR_COLOR/RecoZone')
-        for j in range(len(box)):
+        for j in xrange(len(box)):
             bb = box[j]
             rbottom.append(int(getAttributeContents(bb, 'Bottom')))
             rtop.append(int(getAttributeContents(bb, 'Top')))
             rleft.append(int(getAttributeContents(bb, 'Left')))
             rright.append(int(getAttributeContents(bb, 'Right')))
         box = doc.xpathEval('//record/MARITAL_STATUS/RecoZone')
-        for j in range(len(box)):
+        for j in xrange(len(box)):
             bb = box[j]
             mbottom.append(int(getAttributeContents(bb, 'Bottom')))
             mtop.append(int(getAttributeContents(bb, 'Top')))
@@ -221,14 +220,14 @@ class ImageData(object):
         sexbox = []
         racebox = []
         marriedbox = []
-        for j in range(len(sbottom)):
+        for j in xrange(len(sbottom)):
             h = BoundingBox(stop[j], sbottom[j], sleft[j], sright[j])
             sexbox.append(h) #its only awkward if you make it
             h = BoundingBox(rtop[j], rbottom[j], rleft[j], rright[j])
             racebox.append(h) #see previous comment
             h = BoundingBox(mtop[j], mbottom[j], mleft[j], mright[j])
             marriedbox.append(h)
-        for j in range(len(linenum)):
+        for j in xrange(len(linenum)):
             self.boundingBoxes.append(RecordBoundingBoxes(linenum[j], sexbox[j], racebox[j], marriedbox[j]))
 
 def readFiles(directory):
@@ -238,14 +237,13 @@ def readFiles(directory):
     namelist = glob.glob(directory + '/*.jpg')
     newname = []
     objects = []
-    for y in range(len(namelist)):
+    for y in xrange(len(namelist)):
         newname.append(namelist[y].replace("jpg", ""))
-        for y in range(len(newname)):
+        for y in xrange(len(newname)):
             obj = ImageData(newname[y])
             obj.parseTrueXml(newname[y]+'truth.xml')
             obj.parseAbarbXml(newname[y]+'origABARB.xml')
             obj.parseCompanyXml(newname[y]+'hypBboxes.xml.filtered')
-            objects.append(obj)
-    return objects
+            yield obj
 
 
