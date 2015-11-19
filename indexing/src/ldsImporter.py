@@ -93,31 +93,38 @@ class ImageData(object):
         Populates the self.aRecords, self.bRecords, and self.arbRecords lists (appending)
         '''
         doc = xml.parseFile(filepath)
-        aItems = doc.xpathEval('//headera/header-item')
+        aItems = doc.xpathEval('//headera/header-item[@name="LINE_NBR"]')
         sex = []
         race = []
         married = []
         linenum = []
-        for k in range(len(aItems)):
-            h = aItems[k]
-            if getAttributeContents(h, 'name') == "PR_SEX":
-                sex.append(h.get_content().strip())
-            if getAttributeContents(h, 'name') == "PR_RACE_OR_COLOR":
-                race.append(h.get_content().strip())
-            if getAttributeContents(h, 'name') == "PR_MARITAL_STATUS":
-                married.append(h.get_content().strip())
-            if getAttributeContents(h, 'name') == "LINE_NBR":
-                linenum.append(int(h.get_content().strip()))
+        for lineItem in aItems:
+            recordNum = getAttributeContents(lineItem, 'record')
+            similarRecords = doc.xpathEval('//headera/header-item[@record="{0}"]'.format(recordNum))
+            if lineItem.get_content().strip() == '':
+                continue
+            for h in similarRecords:
+                if getAttributeContents(h, 'name') == "PR_SEX":
+                    sex.append(h.get_content().strip())
+                if getAttributeContents(h, 'name') == "PR_RACE_OR_COLOR":
+                    race.append(h.get_content().strip())
+                if getAttributeContents(h, 'name') == "PR_MARITAL_STATUS":
+                    married.append(h.get_content().strip())
+                if getAttributeContents(h, 'name') == "LINE_NBR":
+                    linenum.append(int(h.get_content().strip()))
         for x in range(len(linenum)):
             r = Record(linenum[x], sex[x], race[x], married[x])
             self.aRecords.append(r)
-        bItems = doc.xpathEval('//headerb/header-item')
+        bItems = doc.xpathEval('//headerb/header-item[@name="LINE_NBR"]')
         sex = []
         race = []
         married = []
         linenum = []
-        for k in range(len(bItems)):
-            h = bItems[k]
+        for lineItem in bItems:
+            recordNum = getAttributeContents(lineItem, 'record')
+            similarRecords = doc.xpathEval('//headerb/header-item[@record="{0}"]'.format(recordNum))
+            if lineItem.get_content().strip() == '':
+                continue
             if getAttributeContents(h, 'name') == "PR_SEX":
                 sex.append(h.get_content().strip())
             if getAttributeContents(h, 'name') == "PR_RACE_OR_COLOR":
@@ -129,13 +136,16 @@ class ImageData(object):
         for x in range(len(linenum)):
             r = Record(linenum[x], sex[x], race[x], married[x])
             self.bRecords.append(r)
-        items = doc.xpathEval('//header/header-item')
+        items = doc.xpathEval('//header/header-item[@name="LINE_NBR"]')
         sex = []
         race = []
         married = []
         linenum = []
-        for k in range(len(items)):
-            h = items[k]
+        for lineItem in items:
+            recordNum = getAttributeContents(lineItem, 'record')
+            similarRecords = doc.xpathEval('//header/header-item[@record="{0}"]'.format(recordNum))
+            if lineItem.get_content().strip() == '':
+                continue
             if getAttributeContents(h, 'name') == "PR_SEX":
                 sex.append(h.get_content().strip())
             if getAttributeContents(h, 'name') == "PR_RACE_OR_COLOR":
@@ -147,7 +157,6 @@ class ImageData(object):
         for x in range(len(linenum)):
             r = Record(linenum[x], sex[x], race[x], married[x])
             self.arbRecords.append(r)
-        pass
 
     def parseCompanyXml(self, filepath):
         '''
