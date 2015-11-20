@@ -6,6 +6,7 @@ anything else...
 from collections import namedtuple
 import glob
 import libxml2 as xml
+import re
 
 # BoundingBox:
 #   top     (int) Top of the box
@@ -36,14 +37,14 @@ def getAttributeContents(node, attribute):
     AssertionError is thrown.
     '''
     a = node.xpathEval('./@' + attribute)
-    assert len(a) > 0, 'Attribute {0} not found in node {1}'.format(attribute, node)
-    assert len(a) < 2, 'Duplicate attributes {0} found in node {1}'.format(attribute, node)
+    assert len(a) > 0, 'Attribute {0} not found in node {1}'.format(attribute, node.name)
+    assert len(a) < 2, 'Duplicate attributes {0} found in node {1}'.format(attribute, node.name)
     return a[0].get_content()
 
 def getChildNode(node, name):
     a = node.xpathEval('./' + name)
-    assert len(a) > 0
-    assert len(a) < 2
+    assert len(a) > 0, 'Node {0} does not have a child {1}'.format(node.name, name)
+    assert len(a) < 2, 'Node {0} has more than one child {1}'.format(node.name, name)
     return a[0]
 
 class ImageData(object):
@@ -104,10 +105,10 @@ class ImageData(object):
                 recordNum = getAttributeContents(lineItem, 'record')
                 similarRecords = doc.xpathEval('//{0}/header-item[@record="{1}"]'.format(header, recordNum))
                 linenum = lineItem.get_content().strip()
-                if linenum == '':
+                try:
+                    linenum = int(re.search('([0-9]*)', linenum).group(0))
+                except:
                     continue
-                else:
-                    linenum = int(linenum)
                 sex = ''
                 race = ''
                 married = ''
@@ -133,17 +134,20 @@ class ImageData(object):
         recordNodes = doc.xpathEval('//record')
         linenumGuess = 1
         for node in recordNodes:
-            lineNode = getChildNode(node, 'LINE_NBR')
-            genderNode = getChildNode(node, 'PR_SEX')
-            ethnicityNode = getChildNode(node, 'PR_RACE_OR_COLOR')
-            maritalNode = getChildNode(node, 'MARITAL_STATUS')
+            try:
+                lineNode = getChildNode(node, 'LINE_NBR')
+                genderNode = getChildNode(node, 'PR_SEX')
+                ethnicityNode = getChildNode(node, 'PR_RACE_OR_COLOR')
+                maritalNode = getChildNode(node, 'MARITAL_STATUS')
+            except AssertionError as ex:
+                raise AssertionError('file: ' + filepath + ', ' + ex.args[0])
             linenum = lineNode.get_content().strip()
             sex = genderNode.get_content().strip()
             race = ethnicityNode.get_content().strip()
             married = maritalNode.get_content().strip()
             if linenum == '':
                 linenum = linenumGuess
-                print linenum, filepath
+                #print linenum, filepath
             else:
                 linenum = int(linenum)
                 linenumGuess = linenum
@@ -154,7 +158,10 @@ class ImageData(object):
             # Get bounding boxes
             boxes = [] # array of sexbox, racebox, marriagebox  :)
             for subnode in (genderNode, ethnicityNode, maritalNode):
-                recNode = getChildNode(subnode, 'RecoZone')
+                try:
+                    recNode = getChildNode(subnode, 'RecoZone')
+                except AssertionError as ex:
+                    raise AssertionError('file: ' + filepath + ', ' + ex.args[0])
                 boxes.append(BoundingBox(
                     int(getAttributeContents(recNode, 'Top')),
                     int(getAttributeContents(recNode, 'Bottom')),
@@ -168,12 +175,15 @@ def readFiles(directory):
     Reads the files from the given directory and returns a list of ImageData objects
     '''
     namelist = glob.glob(directory + '/*.jpg')
-    for y in xrange(len(namelist)):
-        newname = namelist[y].replace("jpg", "")
-        obj = ImageData(namelist[y])
-        obj.parseTrueXml(newname + 'truth.xml')
-        obj.parseAbarbXml(newname + 'origABARB.xml')
-        obj.parseCompanyXml(newname + 'hypBboxes.xml.filtered')
+    for name in namelist:
+        newname = name.replace("jpg", "")
+        obj = ImageData(name)
+        try:
+            obj.parseTrueXml(newname + 'truth.xml')
+            obj.parseAbarbXml(newname + 'origABARB.xml')
+            obj.parseCompanyXml(newname + 'hypBboxes.xml.filtered')
+        except AssertionError as ex:
+            print name, ex
         yield obj
 
 

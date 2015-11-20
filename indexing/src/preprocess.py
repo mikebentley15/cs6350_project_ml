@@ -78,40 +78,47 @@ def main(arguments):
                     )
             writer.writerow(headerRow)
             for imageData in data:
-                count = len(imageData.trueRecords)
-                assert count == len(imageData.aRecords), \
-                    'aRecords count mistmatch: {0} != {1}, file={2}'.format(count, len(imageData.aRecords), imageData.imagePath)
-                assert count == len(imageData.bRecords), \
-                    'bRecords count mistmatch: {0} != {1}, file={2}'.format(count, len(imageData.bRecords), imageData.imagePath)
-                assert count == len(imageData.arbRecords), \
-                    'arbRecords count mistmatch: {0} != {1}, file={2}'.format(count, len(imageData.arbRecords), imageData.imagePath)
-                assert count <= len(imageData.companyRecords), \
-                    'companyRecords count mistmatch: {0} !<= {1}, file={2}'.format(count, len(imageData.companyRecords), imageData.imagePath)
-                assert count <= len(imageData.boundingBoxes), \
-                    'boundingBoxes count mistmatch: {0} !<= {1}, file={2}'.format(count, len(imageData.boundingBoxes), imageData.imagePath)
-                lines = set(x.line for x in imageData.trueRecords)
-                # Make a row in the csv file per line
-                for line in sorted(lines):
-                    row = [imageData.imagePath, line]
-                    for name, records in (('truth', imageData.trueRecords),
-                                          ('a', imageData.aRecords),
-                                          ('b', imageData.bRecords),
-                                          ('arb', imageData.arbRecords),
-                                          ('company', imageData.companyRecords)):
-                        # Note: the mod 50 is because there are at most 50 records in each image
-                        #  and at least the following image has renumbered the rows, where company
-                        #  data was confused:
-                        #   - 004531795_01081.jpg
-                        element = [x for x in records if (x.line % 50) == (line % 50)]
-                        # There should be exactly one record from each source for each line
-                        assert len(element) == 1, 'Type {0} has {1} records for line {2}, file = {3}'.format(name, len(element), line, imageData.imagePath)
-                        row.extend(element[0][1:]) # Appends sex, race, and married
-                    # Note: the mod 50 is for the same reason above
-                    boxes = [x for x in imageData.boundingBoxes if (x.line % 50) == (line % 50)]
-                    assert len(boxes) == 1
-                    for box in boxes[0][1:]:
-                        row.extend(box) # Appends top, bottom, left, and right
-                    writer.writerow(row)
+                try:
+                    count = len(imageData.trueRecords)
+                    assert count == len(imageData.aRecords), \
+                        'aRecords count mistmatch: {0} != {1}, file={2}'.format(count, len(imageData.aRecords), imageData.imagePath)
+                    assert count == len(imageData.bRecords), \
+                        'bRecords count mistmatch: {0} != {1}, file={2}'.format(count, len(imageData.bRecords), imageData.imagePath)
+                    assert count == len(imageData.arbRecords), \
+                        'arbRecords count mistmatch: {0} != {1}, file={2}'.format(count, len(imageData.arbRecords), imageData.imagePath)
+                    assert count <= len(imageData.companyRecords), \
+                        'companyRecords count mistmatch: {0} !<= {1}, file={2}'.format(count, len(imageData.companyRecords), imageData.imagePath)
+                    assert count <= len(imageData.boundingBoxes), \
+                        'boundingBoxes count mistmatch: {0} !<= {1}, file={2}'.format(count, len(imageData.boundingBoxes), imageData.imagePath)
+                    lines = set(x.line for x in imageData.trueRecords)
+                    # Make a row in the csv file per line
+                    for line in sorted(lines):
+                        try:
+                            row = [imageData.imagePath, line]
+                            for name, records in (('truth', imageData.trueRecords),
+                                                  ('a', imageData.aRecords),
+                                                  ('b', imageData.bRecords),
+                                                  ('arb', imageData.arbRecords),
+                                                  ('company', imageData.companyRecords)):
+                                # Note: the mod 50 is because there are at most 50 records in each image
+                                #  and at least the following image has renumbered the rows, where company
+                                #  data was confused:
+                                #   - 004531795_01081.jpg
+                                element = [x for x in records if (x.line % 50) == (line % 50)]
+                                # There should be exactly one record from each source for each line
+                                assert len(element) == 1, 'Type {0} has {1} records for line {2}, file = {3}'.format(name, len(element), line, imageData.imagePath)
+                                row.extend(element[0][1:]) # Appends sex, race, and married
+                            # Note: the mod 50 is for the same reason above
+                            boxes = [x for x in imageData.boundingBoxes if (x.line % 50) == (line % 50)]
+                            assert len(boxes) == 1
+                            for box in boxes[0][1:]:
+                                row.extend(box) # Appends top, bottom, left, and right
+                            writer.writerow(row)
+                        except AssertionError as ex:
+                            print imageData.imagePath, 'skipping line', line, 'because of', ex
+                except AssertionError as ex:
+                    print imageData.imagePath, ex
+                    pass
 
 if __name__ == '__main__':
     main(sys.argv[1:])
