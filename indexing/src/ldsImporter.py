@@ -40,6 +40,12 @@ def getAttributeContents(node, attribute):
     assert len(a) < 2, 'Duplicate attributes {0} found in node {1}'.format(attribute, node)
     return a[0].get_content()
 
+def getChildNode(node, name):
+    a = node.xpathEval('./' + name)
+    assert len(a) > 0
+    assert len(a) < 2
+    return a[0]
+
 class ImageData(object):
     '''
     Represents the data for a single image
@@ -92,72 +98,28 @@ class ImageData(object):
         Populates the self.aRecords, self.bRecords, and self.arbRecords lists (appending)
         '''
         doc = xml.parseFile(filepath)
-        aItems = doc.xpathEval('//headera/header-item[@name="LINE_NBR"]')
-        sex = []
-        race = []
-        married = []
-        linenum = []
-        for lineItem in aItems:
-            recordNum = getAttributeContents(lineItem, 'record')
-            similarRecords = doc.xpathEval('//headera/header-item[@record="{0}"]'.format(recordNum))
-            if lineItem.get_content().strip() == '':
-                continue
-            for h in similarRecords:
-                if getAttributeContents(h, 'name') == "PR_SEX":
-                    sex.append(h.get_content().strip())
-                if getAttributeContents(h, 'name') == "PR_RACE_OR_COLOR":
-                    race.append(h.get_content().strip())
-                if getAttributeContents(h, 'name') == "PR_MARITAL_STATUS":
-                    married.append(h.get_content().strip())
-                if getAttributeContents(h, 'name') == "LINE_NBR":
-                    linenum.append(int(h.get_content().strip()))
-        for x in xrange(len(linenum)):
-            r = Record(linenum[x], sex[x], race[x], married[x])
-            self.aRecords.append(r)
-        bItems = doc.xpathEval('//headerb/header-item[@name="LINE_NBR"]')
-        sex = []
-        race = []
-        married = []
-        linenum = []
-        for lineItem in bItems:
-            recordNum = getAttributeContents(lineItem, 'record')
-            similarRecords = doc.xpathEval('//headerb/header-item[@record="{0}"]'.format(recordNum))
-            if lineItem.get_content().strip() == '':
-                continue
-            for h in similarRecords:
-                if getAttributeContents(h, 'name') == "PR_SEX":
-                    sex.append(h.get_content().strip())
-                if getAttributeContents(h, 'name') == "PR_RACE_OR_COLOR":
-                    race.append(h.get_content().strip())
-                if getAttributeContents(h, 'name') == "PR_MARITAL_STATUS":
-                    married.append(h.get_content().strip())
-                if getAttributeContents(h, 'name') == "LINE_NBR":
-                    linenum.append(int(h.get_content().strip()))
-        for x in xrange(len(linenum)):
-            r = Record(linenum[x], sex[x], race[x], married[x])
-            self.bRecords.append(r)
-        items = doc.xpathEval('//header/header-item[@name="LINE_NBR"]')
-        sex = []
-        race = []
-        married = []
-        linenum = []
-        for lineItem in items:
-            recordNum = getAttributeContents(lineItem, 'record')
-            similarRecords = doc.xpathEval('//header/header-item[@record="{0}"]'.format(recordNum))
-            if lineItem.get_content().strip() == '':
-                continue
-            for h in similarRecords:
-                if getAttributeContents(h, 'name') == "PR_SEX":
-                    sex.append(h.get_content().strip())
-                if getAttributeContents(h, 'name') == "PR_RACE_OR_COLOR":
-                    race.append(h.get_content().strip())
-                if getAttributeContents(h, 'name') == "PR_MARITAL_STATUS":
-                    married.append(h.get_content().strip())
-                if getAttributeContents(h, 'name') == "LINE_NBR":
-                    linenum.append(int(h.get_content().strip()))
-        for x in xrange(len(linenum)):
-            r = Record(linenum[x], sex[x], race[x], married[x])
-            self.arbRecords.append(r)
+        for header, records in zip(('headera', 'headerb', 'header'), (self.aRecords, self.bRecords, self.arbRecords)):
+            items = doc.xpathEval('//{0}/header-item[@name="LINE_NBR"]'.format(header))
+            for lineItem in items:
+                recordNum = getAttributeContents(lineItem, 'record')
+                similarRecords = doc.xpathEval('//{0}/header-item[@record="{1}"]'.format(header, recordNum))
+                linenum = lineItem.get_content().strip()
+                if linenum == '':
+                    continue
+                else:
+                    linenum = int(linenum)
+                sex = ''
+                race = ''
+                married = ''
+                for h in similarRecords:
+                    if getAttributeContents(h, 'name') == "PR_SEX":
+                        sex = h.get_content().strip()
+                    if getAttributeContents(h, 'name') == "PR_RACE_OR_COLOR":
+                        race = h.get_content().strip()
+                    if getAttributeContents(h, 'name') == "PR_MARITAL_STATUS":
+                        married = h.get_content().strip()
+                if not (sex == '' and race == '' and married == ''):
+                    records.append(Record(linenum, sex, race, married))
 
     def parseCompanyXml(self, filepath):
         '''
@@ -168,69 +130,38 @@ class ImageData(object):
         linenum = []
         race = []
         married = []
-        linenbr = doc.xpathEval('//record/LINE_NBR')
-        gender = doc.xpathEval('//record/PR_SEX')
-        ethnic = doc.xpathEval('//record/PR_RACE_OR_COLOR')
-        marital = doc.xpathEval('//record/MARITAL_STATUS')
-        for i in xrange(len(linenbr)):
-            h = linenbr[i]
-            linenum.append(h.get_content().strip())
-            h = gender[i]
-            sex.append(h.get_content().strip())
-            h = ethnic[i]
-            race.append(h.get_content().strip())
-            h = marital[i]
-            married.append(h.get_content().strip())
-        for x in xrange(len(linenum)):
-            r = Record(linenum[x], sex[x], race[x], married[x])
-            self.companyRecords.append(r)
-        # Get the bounding Boxes
-        stop = []
-        sleft = []
-        sright = []
-        sbottom = []
-        rtop = []
-        rleft = []
-        rright = []
-        rbottom = []
-        mtop = []
-        mleft = []
-        mright = []
-        mbottom = []
-        box = doc.xpathEval('//record/PR_SEX/RecoZone')
-        for j in xrange(len(box)):
-            bb = box[j]
-            sbottom.append(int(getAttributeContents(bb, 'Bottom')))
-            stop.append(int(getAttributeContents(bb, 'Top')))
-            sleft.append(int(getAttributeContents(bb, 'Left')))
-            sright.append(int(getAttributeContents(bb, 'Right')))
-        box = doc.xpathEval('//record/PR_RACE_OR_COLOR/RecoZone')
-        for j in xrange(len(box)):
-            bb = box[j]
-            rbottom.append(int(getAttributeContents(bb, 'Bottom')))
-            rtop.append(int(getAttributeContents(bb, 'Top')))
-            rleft.append(int(getAttributeContents(bb, 'Left')))
-            rright.append(int(getAttributeContents(bb, 'Right')))
-        box = doc.xpathEval('//record/MARITAL_STATUS/RecoZone')
-        for j in xrange(len(box)):
-            bb = box[j]
-            mbottom.append(int(getAttributeContents(bb, 'Bottom')))
-            mtop.append(int(getAttributeContents(bb, 'Top')))
-            mleft.append(int(getAttributeContents(bb, 'Left')))
-            mright.append(int(getAttributeContents(bb, 'Right')))
-        #Form Bounding Boxes
-        sexbox = []
-        racebox = []
-        marriedbox = []
-        for j in xrange(len(sbottom)):
-            h = BoundingBox(stop[j], sbottom[j], sleft[j], sright[j])
-            sexbox.append(h) #its only awkward if you make it
-            h = BoundingBox(rtop[j], rbottom[j], rleft[j], rright[j])
-            racebox.append(h) #see previous comment
-            h = BoundingBox(mtop[j], mbottom[j], mleft[j], mright[j])
-            marriedbox.append(h)
-        for j in xrange(len(linenum)):
-            self.boundingBoxes.append(RecordBoundingBoxes(linenum[j], sexbox[j], racebox[j], marriedbox[j]))
+        recordNodes = doc.xpathEval('//record')
+        linenumGuess = 1
+        for node in recordNodes:
+            lineNode = getChildNode(node, 'LINE_NBR')
+            genderNode = getChildNode(node, 'PR_SEX')
+            ethnicityNode = getChildNode(node, 'PR_RACE_OR_COLOR')
+            maritalNode = getChildNode(node, 'MARITAL_STATUS')
+            linenum = lineNode.get_content().strip()
+            sex = genderNode.get_content().strip()
+            race = ethnicityNode.get_content().strip()
+            married = maritalNode.get_content().strip()
+            if linenum == '':
+                linenum = linenumGuess
+                print linenum, filepath
+            else:
+                linenum = int(linenum)
+                linenumGuess = linenum
+            # In our usage of this, we are forgiving of extra company records, but not of missing company records
+            # so, we err on the side of including the record even if the company "thinks" it was empty
+            self.companyRecords.append(Record(linenum, sex, race, married))
+            linenumGuess += 1
+            # Get bounding boxes
+            boxes = [] # array of sexbox, racebox, marriagebox  :)
+            for subnode in (genderNode, ethnicityNode, maritalNode):
+                recNode = getChildNode(subnode, 'RecoZone')
+                boxes.append(BoundingBox(
+                    int(getAttributeContents(recNode, 'Top')),
+                    int(getAttributeContents(recNode, 'Bottom')),
+                    int(getAttributeContents(recNode, 'Left')),
+                    int(getAttributeContents(recNode, 'Right'))
+                    ))
+            self.boundingBoxes.append(RecordBoundingBoxes(linenum, boxes[0], boxes[1], boxes[2]))
 
 def readFiles(directory):
     '''
