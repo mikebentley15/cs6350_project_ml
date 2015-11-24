@@ -93,6 +93,7 @@ class ImageData(object):
         for x in xrange(len(linenum)):
             r = Record(linenum[x], sex[x], race[x], married[x])
             self.trueRecords.append(r)
+        doc.freeDoc()
 
     def parseAbarbXml(self, filepath):
         '''
@@ -121,6 +122,7 @@ class ImageData(object):
                         married = h.get_content().strip()
                 if not (sex == '' and race == '' and married == ''):
                     records.append(Record(linenum, sex, race, married))
+        doc.freeDoc()
 
     def parseCompanyXml(self, filepath):
         '''
@@ -169,6 +171,7 @@ class ImageData(object):
                     int(getAttributeContents(recNode, 'Right'))
                     ))
             self.boundingBoxes.append(RecordBoundingBoxes(linenum, boxes[0], boxes[1], boxes[2]))
+        doc.freeDoc()
 
 def readFiles(directory):
     '''
