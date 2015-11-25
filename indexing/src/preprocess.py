@@ -5,10 +5,10 @@ whole lot.
 '''
 
 import ldsImporter
+from utils import mkdir_p
 
 import argparse
 import csv
-import errno
 import os
 import sys
 
@@ -16,20 +16,6 @@ _scriptDir = os.path.dirname(__file__)
 _defaultTrainDir = os.path.join(_scriptDir, '..', 'training-data')
 _defaultTestDir = os.path.join(_scriptDir, '..', 'test-data')
 _defaultOutDir = 'output'
-
-def mkdir_p(path):
-    '''
-    Performs the same functionality as mkdir -p in the bash shell.
-    An OSError is raised if the directory does not exist and was
-    not able to be created.
-    '''
-    try:
-        os.makedirs(path)
-    except OSError as exc: # Python > 2.5
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
-            raise
 
 def main(arguments):
     'Main entry point'
@@ -94,7 +80,7 @@ def main(arguments):
                     # Make a row in the csv file per line
                     for line in sorted(lines):
                         try:
-                            row = [imageData.imagePath, line]
+                            row = [os.path.abspath(imageData.imagePath), line]
                             for name, records in (('truth', imageData.trueRecords),
                                                   ('a', imageData.aRecords),
                                                   ('b', imageData.bRecords),

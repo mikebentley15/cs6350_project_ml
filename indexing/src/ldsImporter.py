@@ -177,14 +177,13 @@ def readFiles(directory):
     '''
     Reads the files from the given directory and returns a list of ImageData objects
     '''
-    namelist = glob.glob(directory + '/*.jpg')
-    for name in namelist:
-        newname = name.replace("jpg", "")
+    for name in glob.glob(directory + '/*.jpg'):
+        basename = name.replace("jpg", "")
         obj = ImageData(name)
         try:
-            obj.parseTrueXml(newname + 'truth.xml')
-            obj.parseAbarbXml(newname + 'origABARB.xml')
-            obj.parseCompanyXml(newname + 'hypBboxes.xml.filtered')
+            obj.parseTrueXml(basename + 'truth.xml')
+            obj.parseAbarbXml(basename + 'origABARB.xml')
+            obj.parseCompanyXml(basename + 'hypBboxes.xml.filtered')
         except AssertionError as ex:
             print name, ex
         yield obj
