@@ -5,6 +5,8 @@ import imagefuncs
 import ldsImporter
 import utils
 
+import argparse
+
 import numpy
 import csv
 
@@ -14,38 +16,38 @@ from theano.tensor.signal import downsample
 from theano.tensor.nnet import conv
 import cv2
 
-#   SubImage:
-#   outpath    (str) Path of the subimage file
-#   truth-sex  (str) Label of the subimage
-SubImage = namedtuple('SubImage', 'outpath truth-sex')
-
-data=[]
-with open(filepath, 'r') as csvfile:
-    reader = csv.DictReader(csvfile, dialect='excel-tab')
-    for line in reader:
-        imagepath = os.path.join('../../data', os.path.basename(line['imagePath']))
+def main(filepath, outdir):
+    with open(filepath, 'r') as csvfile:
+        reader = csv.DictReader(csvfile, dialect='excel-tab')
+        lines = [line for line in reader]
+    imagepaths = set(line['imagePath'] for line in lines)
+    print len(imagepaths), 'images'
+    utils.mkdir_p(outdir)
+    newsize = (52, 68)
+    for imagepath in imagepaths:
         image = cv2.imread(imagepath)
-        boundbox = ldsImporter.BoundingBox(
-            int(line['sex-top']),
-            int(line['sex-bottom']),
-            int(line['sex-left']),
-            int(line['sex-right'])
-            )
-        newimage = imagefuncs.getSubImage(image, boundbox)
-        outdir = '../../subimages'
-        utils.mkdir_p(outdir)
-        imagenameComponents = os.path.splitext(os.path.basename(imagepath))
-        outpath = os.path.join(
-            outdir,
-            imagenameComponents[0] + '-' + line['line'] + '.' + imagenameComponents[1]
-            )
-        cv2.imwrite(outpath, newimage)
-        #data.append(SubImage(outpath,line['truth-sex'])
-        #I want to make an object the object will include..... outpath,truth-sex 
+        relevantLines = [line for line in lines if line['imagePath'] == imagepath]
+        for line in relevantLines:
+            boundbox = ldsImporter.BoundingBox(
+                int(line['sex-top']),
+                int(line['sex-bottom']),
+                int(line['sex-left']),
+                int(line['sex-right'])
+                )
+            newimage = imagefuncs.getSubImage(image, boundbox)
+            newimage = imagefuncs.mirrorPadImage(newimage, newsize)
+            imagenameComponents = os.path.splitext(os.path.basename(imagepath))
+            outpath = os.path.join(
+                outdir,
+                imagenameComponents[0] + '-' + line['line'] + '.png'
+                )
+            cv2.imwrite(outpath, newimage)
+        print imagepath
 
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('filepath')
+    parser.add_argument('outdir')
+    args = parser.parse_args()
+    main(args.filepath, args.outdir)
 
-#datasets = load_data(dataset)
-#train_set = datasets[0]
-#test_set = datasets[1]
-
-        
