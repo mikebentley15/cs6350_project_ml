@@ -1,4 +1,4 @@
-from ldsImporter import BoundingBox
+from ldsimporter import BoundingBox
 from utils import mkdir_p
 from imagefuncs import drawBox
 

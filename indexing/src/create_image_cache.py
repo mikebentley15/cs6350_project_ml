@@ -3,7 +3,7 @@ Creates an image cache.  Call this script with --help for more info
 '''
 
 import imagefuncs
-import ldsImporter
+import ldsimporter
 import utils
 
 import cv2
@@ -46,7 +46,7 @@ def main(arguments):
             line for line in lines if line['imagePath'] == imagepath
             ]
         for line in relevantLines:
-            boundbox = ldsImporter.BoundingBox(
+            boundbox = ldsimporter.BoundingBox(
                 int(line['sex-top']),
                 int(line['sex-bottom']),
                 int(line['sex-left']),

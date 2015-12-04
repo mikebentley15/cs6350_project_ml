@@ -4,7 +4,7 @@ into an intermediate format which is a single tsv file for the
 whole lot.
 '''
 
-import ldsImporter
+import ldsimporter
 from utils import mkdir_p
 
 import argparse
@@ -45,8 +45,8 @@ def main(arguments):
         train.tsv and test.tsv.
         ''')
     args = parser.parse_args(args=arguments)
-    trainData = ldsImporter.readFiles(args.train)
-    testData = ldsImporter.readFiles(args.test)
+    trainData = ldsimporter.readFiles(args.train)
+    testData = ldsimporter.readFiles(args.test)
     mkdir_p(args.outdir)
     for data, outfile in ((trainData, os.path.join(args.outdir, 'train.tsv')),
                           (testData, os.path.join(args.outdir, 'test.tsv'))):
