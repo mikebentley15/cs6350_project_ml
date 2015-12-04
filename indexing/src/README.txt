@@ -79,7 +79,7 @@ file classifier.dat, which can be used to classify in later steps.
 == Classifying ==
 
 Classifying requires only a subimage in the same format as the ones generated
-in the Extraction phase.  They should be 40x68 pixels.  Place the images you
+in the Extraction phase.  They should be 68x40 pixels.  Place the images you
 want classified into a directory and then call the classify.py script.
 
 Example:
