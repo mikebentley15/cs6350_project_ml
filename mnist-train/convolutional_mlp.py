@@ -66,13 +66,35 @@ class LeNetConvPoolLayer(object):
 
         # there are "num input feature maps * filter height * filter width"
         # inputs to each hidden unit
+        # Michael Q: Why does fan_in depend on number of input images?
+        # Michael A: The fan_in depends on the number of input images because
+        # Michael A: each output image will be computed from the entire group
+        # Michael A: of input images, so consider the input as a 3D image and
+        # Michael A: we are generating k output 2D images from the 3D image
+        # Michael A: input.  Therefore, this 3D image input is # of input nodes.
         fan_in = numpy.prod(filter_shape[1:])
         # each unit in the lower layer receives a gradient from:
         # "num output feature maps * filter height * filter width" /
         #   pooling size
+        # Michael Q: Why does fan_out depend on the number of output images?
+        # Michael A: ?
+        # Michael A: I'm not too sure yet.
+        # Michael A: Basically in the paper describing the W_bound, it uses
+        # Michael A: just the sum of the number of inputs and the number of
+        # Michael A: nodes.  I'm not sure why this is necessary, but it may
+        # Michael A: have to do with the fact that the outputs are not
+        # Michael A: necessarily independent because they are joined in later
+        # Michael A: layer(s) of the network, and are connected when doing
+        # Michael A: back-propogation.
         fan_out = (filter_shape[0] * numpy.prod(filter_shape[2:]) /
                    numpy.prod(poolsize))
         # initialize weights with random weights
+        # Michael Q: Where does the weight vector bound come from?
+        # Michael A: This particular bound comes from the use of tanh(x) as
+        # Michael A: our activation function.  This bound for the tanh(x)
+        # Michael A: comes from the paper "Understanding the difficulty of
+        # Michael A: training deep feedforward neural networks" by Xavier
+        # Michael A: Glorot and Yoshua Bengio.
         W_bound = numpy.sqrt(6. / (fan_in + fan_out))
         self.W = theano.shared(
             numpy.asarray(
@@ -83,6 +105,11 @@ class LeNetConvPoolLayer(object):
         )
 
         # the bias is a 1D tensor -- one bias per output feature map
+        # Michael Q: Why is the b vector simply initialized to zero?
+        # Michael A: Not fully sure.
+        # Michael A: I think it's because the tanh function is centered about
+        # Michael A: the origin.  It may depend on the centering of the input
+        # Michael A: values.
         b_values = numpy.zeros((filter_shape[0],), dtype=theano.config.floatX)
         self.b = theano.shared(value=b_values, borrow=True)
 
