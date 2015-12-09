@@ -42,6 +42,9 @@ def main(arguments):
     newsize = (40, 68)
     for imagepath in imagepaths:
         image = cv2.imread(imagepath)
+        if image is None:
+            print imagepath
+            raise IOError(imagepath + ' does not exist')
         relevantLines = [
             line for line in lines if line['imagePath'] == imagepath
             ]
