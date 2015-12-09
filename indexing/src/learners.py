@@ -82,11 +82,11 @@ class Sgd(object):
                 }
             )
 
-        # TODO: permute xdata and ydata
         for epoch in xrange(epochs):
-            #perm = np.random.permutation(xlen)
-            #xdata[perm] = xdata
-            #ydata[perm] = ydata
+            # Permute the data arrays
+            perm = np.random.permutation(xlen)
+            xdata[perm] = xdata
+            ydata[perm] = ydata
             #print 'epoch', epoch+1
             #print '  w', self.w.get_value().reshape(len(xdata[0]))
             #print '  b', self.b.get_value()
@@ -140,34 +140,36 @@ class Perceptron(Sgd):
         return answers.reshape((xdata_share.get_value(borrow=True).shape[0],))
 
 def main():
-    r = 0.2
+    r = 0.1
+    epochs = 500
     print 'learning rate fixed:   r =', r
+    print 'epochs fixed:     epochs =', epochs
 
     sanityExamples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/sanityCheck-train.dat')
-    print 'sanity train accuracy:    ', testPerceptron(sanityExamples, sanityExamples, r)
+    print 'sanity train accuracy:    ', testPerceptron(sanityExamples, sanityExamples, r, epochs)
 
     train10Examples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/data0/train0.10')
     test10Examples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/data0/test0.10')
-    print 'train0.10 train accuracy: ', testPerceptron(train10Examples, train10Examples, r)
-    print 'train0.10 test accuracy:  ', testPerceptron(train10Examples, test10Examples, r)
+    print 'train0.10 train accuracy: ', testPerceptron(train10Examples, train10Examples, r, epochs)
+    print 'train0.10 test accuracy:  ', testPerceptron(train10Examples, test10Examples, r, epochs)
 
     train20Examples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/data0/train0.20')
     test20Examples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/data0/test0.20')
-    print 'train0.20 train accuracy: ', testPerceptron(train20Examples, train20Examples, r)
-    print 'train0.20 test accuracy:  ', testPerceptron(train20Examples, test20Examples, r)
+    print 'train0.20 train accuracy: ', testPerceptron(train20Examples, train20Examples, r, epochs)
+    print 'train0.20 test accuracy:  ', testPerceptron(train20Examples, test20Examples, r, epochs)
 
     train110Examples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/data1/train1.10')
     test110Examples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/data1/test1.10')
-    print 'train1.10 train accuracy: ', testPerceptron(train110Examples, train110Examples, r)
-    print 'train1.10 test accuracy:  ', testPerceptron(train110Examples, test110Examples, r)
+    print 'train1.10 train accuracy: ', testPerceptron(train110Examples, train110Examples, r, epochs)
+    print 'train1.10 test accuracy:  ', testPerceptron(train110Examples, test110Examples, r, epochs)
 
     train120Examples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/data1/train1.20')
     test120Examples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/data1/test1.20')
-    print 'train1.20 train accuracy: ', testPerceptron(train120Examples, train120Examples, r)
-    print 'train1.20 test accuracy:  ', testPerceptron(train120Examples, test120Examples, r)
+    print 'train1.20 train accuracy: ', testPerceptron(train120Examples, train120Examples, r, epochs)
+    print 'train1.20 test accuracy:  ', testPerceptron(train120Examples, test120Examples, r, epochs)
 
 
-def testPerceptron(trainExamples, testExamples, r = 0.2):
+def testPerceptron(trainExamples, testExamples, r = 0.2, epochs = 10):
     '''
     Trains a Perceptron classifier from the training examples and then
     calculates the accuracy of the generated classifier on the test examples.
@@ -176,7 +178,7 @@ def testPerceptron(trainExamples, testExamples, r = 0.2):
     featuresList = [x.features for x in trainExamples]
     labels = [x.label for x in trainExamples]
     p = Perceptron(len(featuresList[0]), r)
-    p.train(featuresList, labels, 10, 1)
+    p.train(featuresList, labels, epochs, 1)
     testFeatures = [x.features for x in testExamples]
     testLabels = [x.label for x in testExamples]
     predictions = p.predict(testFeatures)
