@@ -1,3 +1,7 @@
+'''
+Implementation of some learning algorithms
+'''
+
 import TrainingExample
 
 import numpy as np
@@ -49,28 +53,14 @@ class Sgd(object):
             borrow=True
             )
 
-        self.b_avg = theano.shared(
-            value=np.zeros(
-                (dim_out),
-                dtype=theano.config.floatX
-            ),
-            name='b',
-            borrow=True
-            )
-
-        self.w_avg = theano.shared(
-            value=np.zeros(
-                (dim_in, dim_out),
-                dtype=theano.config.floatX
-            ),
-            name='w',
-            borrow=True
-            )
-
         self.cost = cost_gen(self.x, self.y, self.w, self.b)
         self.params = [self.w, self.b]
         self.dcost_dw = T.grad(cost=self.cost, wrt=self.w)
         self.dcost_db = T.grad(cost=self.cost, wrt=self.b)
+        self.updates = [
+            (self.w, self.w - self.r * self.dcost_dw),
+            (self.b, self.b - self.r * self.dcost_db),
+            ]
 
     def train(self, xdata, ydata, epochs, batchSize):
         '''
@@ -88,12 +78,6 @@ class Sgd(object):
         xdata_share = theano.shared(xdata, borrow=True)
         ydata_share = theano.shared(ydata, borrow=True)
 
-        updates = [
-            (self.w_avg, self.w_avg + self.w * batchSize),
-            (self.b_avg, self.b_avg + self.b * batchSize),
-            (self.w, self.w - self.r * self.dcost_dw),
-            (self.b, self.b - self.r * self.dcost_db),
-            ]
 
         # TODO: Try to figure out how to deal with batchSize values that don't
         # TODO:   need to exactly divide input count.
@@ -101,7 +85,7 @@ class Sgd(object):
         trainingFunction = theano.function(
             inputs=[index],
             outputs=self.cost,
-            updates=updates,
+            updates=self.updates,
             givens={
                 self.x: xdata_share[index*batchSize : (index+1)*batchSize],
                 self.y: ydata_share[index*batchSize : (index+1)*batchSize],
@@ -142,6 +126,12 @@ def perceptron_loss(x, y, w, b):
     return T.sum(T.maximum(0, - y * (x.dot(w) + b).transpose()))
 
 class Perceptron(Sgd):
+    '''
+    Implements the vanilla perceptron algorithm.
+
+    Note: a bias term is already present.
+    '''
+
     def __init__(self, dim, r):
         '''
         @param dim Number of dimensions in the input
@@ -149,7 +139,68 @@ class Perceptron(Sgd):
         '''
         super(self.__class__, self).__init__(perceptron_loss, dim, 1, r)
 
+    def predict(self, xdata):
+        '''
+        Takes an itterable containing the data as a 2D array.
+
+        Returns a list of labels of -1 or +1.  There is a small probability of
+        getting a label of 0 which happens if the point is exactly on the
+        hyperplane.
+
+        @param xdata Feature list to classify
+        @return list of labels
+        '''
+        xdata_share = theano.shared(
+            np.asarray(xdata, dtype=theano.config.floatX),
+            borrow=True
+            )
+        answers = T.sgn(xdata_share.dot(self.w) + self.b).eval()
+        # The answers array is shaped as a (n,1) 2D array.  We want to reshape
+        # to a 1D array.
+        return answers.reshape((xdata_share.get_value(borrow=True).shape[0],))
+
+class AveragedPerceptron(Sgd):
+    '''
+    Implements the averaged perceptron algorithm.
+
+    Note: a bias term is already present.
+    '''
+
+    def __init__(self, dim, r):
+        '''
+        @param dim Number of dimensions in the input
+        @param r   Learning rate
+        '''
+        super(self.__class__, self).__init__(perceptron_loss, dim, 1, r)
+
+        self.w_avg = theano.shared(
+            value=np.zeros(
+                (dim, 1),
+                dtype=theano.config.floatX
+            ),
+            name='w_avg',
+            borrow=True
+            )
+
+        self.b_avg = theano.shared(
+            value=np.zeros(
+                (1),
+                dtype=theano.config.floatX
+            ),
+            name='b_avg',
+            borrow=True
+            )
+
+        self.updates.extend((
+            (self.w_avg, self.w_avg + self.w * self.x.shape[0]),
+            (self.b_avg, self.b_avg + self.b * self.x.shape[0]),
+            ))
+
+
     def train(self, xdata, ydata, epochs, batchSize):
+        '''
+        Calls the base class train() method and then does post-processing
+        '''
         super(self.__class__, self).train(xdata, ydata, epochs, batchSize)
         self.w_avg = self.w_avg / len(xdata)
         self.b_avg = self.b_avg / len(xdata)
@@ -170,7 +221,8 @@ class Perceptron(Sgd):
             borrow=True
             )
         answers = T.sgn(xdata_share.dot(self.w_avg) + self.b_avg).eval()
-        # The answers array is shaped as a (n,1) 2D array.  We want to reshape to a 1D array.
+        # The answers array is shaped as a (n,1) 2D array.  We want to reshape
+        # to a 1D array.
         return answers.reshape((xdata_share.get_value(borrow=True).shape[0],))
 
 def parseArgs(arguments):
@@ -211,19 +263,23 @@ def main(arguments):
 
 def testPerceptron(name, trainExamples, testExamples, r = 0.2, epochs = 10, batchSize = 1):
     '''
-    Trains a Perceptron classifier from the training examples and then
-    calculates the accuracy of the generated classifier on the test examples.
+    Trains an averaged Perceptron classifier from the training examples and
+    then calculates the accuracy of the generated classifier on the test
+    examples.
 
     Prints out the results to the console
     '''
     featuresList = [x.features for x in trainExamples]
     labels = [x.label for x in trainExamples]
-    p = Perceptron(len(featuresList[0]), r)
+    #p = Perceptron(len(featuresList[0]), r)
+    p = AveragedPerceptron(len(featuresList[0]), r)
 
     print 'training ' + name + ' ',
     sys.stdout.flush()
     p.train(featuresList, labels, epochs, batchSize)
     print ' done'
+    #print 'w vector:       ', p.w.get_value(borrow=True).reshape(-1).tolist()
+    #print 'w_avg vector:   ', p.w_avg.eval().reshape(-1).tolist()
     testFeatures = [x.features for x in testExamples]
     testLabels = [x.label for x in testExamples]
 
