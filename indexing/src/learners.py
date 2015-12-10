@@ -1,9 +1,13 @@
 import TrainingExample
 
 import numpy as np
-import random
 import theano
 import theano.tensor as T
+
+import argparse
+import os
+import random
+import sys
 
 class Sgd(object):
     def __init__(self, cost_gen, dim_in, dim_out, r):
@@ -45,6 +49,24 @@ class Sgd(object):
             borrow=True
             )
 
+        self.b_avg = theano.shared(
+            value=np.zeros(
+                (dim_out),
+                dtype=theano.config.floatX
+            ),
+            name='b',
+            borrow=True
+            )
+
+        self.w_avg = theano.shared(
+            value=np.zeros(
+                (dim_in, dim_out),
+                dtype=theano.config.floatX
+            ),
+            name='w',
+            borrow=True
+            )
+
         self.cost = cost_gen(self.x, self.y, self.w, self.b)
         self.params = [self.w, self.b]
         self.dcost_dw = T.grad(cost=self.cost, wrt=self.w)
@@ -67,10 +89,14 @@ class Sgd(object):
         ydata_share = theano.shared(ydata, borrow=True)
 
         updates = [
+            (self.w_avg, self.w_avg + self.w * batchSize),
+            (self.b_avg, self.b_avg + self.b * batchSize),
             (self.w, self.w - self.r * self.dcost_dw),
             (self.b, self.b - self.r * self.dcost_db),
             ]
 
+        # TODO: Try to figure out how to deal with batchSize values that don't
+        # TODO:   need to exactly divide input count.
         index = T.lscalar()
         trainingFunction = theano.function(
             inputs=[index],
@@ -85,8 +111,8 @@ class Sgd(object):
         for epoch in xrange(epochs):
             # Permute the data arrays
             perm = np.random.permutation(xlen)
-            xdata[perm] = xdata
-            ydata[perm] = ydata
+            xdata[:] = xdata[perm]
+            ydata[:] = ydata[perm]
             #print 'epoch', epoch+1
             #print '  w', self.w.get_value().reshape(len(xdata[0]))
             #print '  b', self.b.get_value()
@@ -97,8 +123,11 @@ class Sgd(object):
                 #print '    xdata[{0}]'.format(minibatchIndex), xdata[minibatchIndex]
                 #print '    ydata[{0}]'.format(minibatchIndex), ydata[minibatchIndex]
                 # This is where training actually occurs
-                #print self.w.get_value(borrow=True).reshape(len(xdata[0]))
                 trainingFunction(minibatchIndex)
+            # Print a period at every 10% done
+            if epoch % (epochs / 10) == 0:
+                sys.stdout.write('.')
+                sys.stdout.flush()
 
 def perceptron_loss(x, y, w, b):
     '''
@@ -110,7 +139,7 @@ def perceptron_loss(x, y, w, b):
     @param b  Bias vector (theano vector)
     @return The perceptron loss function with x, y, w, and b inside
     '''
-    return T.sum(T.maximum(0, - y * (x.dot(w) + b)))
+    return T.sum(T.maximum(0, - y * (x.dot(w) + b).transpose()))
 
 class Perceptron(Sgd):
     def __init__(self, dim, r):
@@ -119,6 +148,11 @@ class Perceptron(Sgd):
         @param r   Learning rate
         '''
         super(self.__class__, self).__init__(perceptron_loss, dim, 1, r)
+
+    def train(self, xdata, ydata, epochs, batchSize):
+        super(self.__class__, self).train(xdata, ydata, epochs, batchSize)
+        self.w_avg = self.w_avg / len(xdata)
+        self.b_avg = self.b_avg / len(xdata)
 
     def predict(self, xdata):
         '''
@@ -135,58 +169,74 @@ class Perceptron(Sgd):
             np.asarray(xdata, dtype=theano.config.floatX),
             borrow=True
             )
-        answers = T.sgn(xdata_share.dot(self.w) + self.b).eval()
+        answers = T.sgn(xdata_share.dot(self.w_avg) + self.b_avg).eval()
         # The answers array is shaped as a (n,1) 2D array.  We want to reshape to a 1D array.
         return answers.reshape((xdata_share.get_value(borrow=True).shape[0],))
 
-def main():
-    r = 0.1
-    epochs = 500
-    print 'learning rate fixed:   r =', r
-    print 'epochs fixed:     epochs =', epochs
+def parseArgs(arguments):
+    parser = argparse.ArgumentParser(description='''
+        Theano implementation of the vanilla Perceptron, and maybe other
+        traininers too.
+        ''')
+    parser.add_argument('-r', '--learning-rate', type=float, default=0.1)
+    parser.add_argument('-e', '--epochs', type=int, default=200)
+    parser.add_argument('-b', '--batch-size', type=int, default=5)
+    return parser.parse_args(args=arguments)
 
-    sanityExamples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/sanityCheck-train.dat')
-    print 'sanity train accuracy:    ', testPerceptron(sanityExamples, sanityExamples, r, epochs)
+def main(arguments):
+    args = parseArgs(arguments)
 
-    train10Examples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/data0/train0.10')
-    test10Examples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/data0/test0.10')
-    print 'train0.10 train accuracy: ', testPerceptron(train10Examples, train10Examples, r, epochs)
-    print 'train0.10 test accuracy:  ', testPerceptron(train10Examples, test10Examples, r, epochs)
+    r = args.learning_rate
+    epochs = args.epochs
+    batchSize = args.batch_size
+    print 'learning rate fixed:      r =', r
+    print 'epochs fixed:        epochs =', epochs
+    print 'batch size fixed:     batch =', batchSize
 
-    train20Examples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/data0/train0.20')
-    test20Examples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/data0/test0.20')
-    print 'train0.20 train accuracy: ', testPerceptron(train20Examples, train20Examples, r, epochs)
-    print 'train0.20 test accuracy:  ', testPerceptron(train20Examples, test20Examples, r, epochs)
+    basedir = '/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data'
 
-    train110Examples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/data1/train1.10')
-    test110Examples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/data1/test1.10')
-    print 'train1.10 train accuracy: ', testPerceptron(train110Examples, train110Examples, r, epochs)
-    print 'train1.10 test accuracy:  ', testPerceptron(train110Examples, test110Examples, r, epochs)
+    sets = [
+        # Name         training path       testing path
+        #('sanity   ', 'sanityCheck-train.dat', 'sanityCheck-train.dat'),
+        ('train0.10', 'data0/train0.10', 'data0/test0.10'),
+        ('train0.20', 'data0/train0.20', 'data0/test0.20'),
+        ('train1.10', 'data1/train1.10', 'data1/test1.10'),
+        ]
 
-    train120Examples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/data1/train1.20')
-    test120Examples = TrainingExample.fromSvm('/home/bentley/classes/cs6350_machine_learning/hw/handin/hw02/data/data1/test1.20')
-    print 'train1.20 train accuracy: ', testPerceptron(train120Examples, train120Examples, r, epochs)
-    print 'train1.20 test accuracy:  ', testPerceptron(train120Examples, test120Examples, r, epochs)
+    for name, trainingPath, testingPath in sets:
+        training = TrainingExample.fromSvm(os.path.join(basedir, trainingPath))
+        testing = TrainingExample.fromSvm(os.path.join(basedir, testingPath))
+        testPerceptron(name, training, testing, r, epochs)
+    print
 
-
-def testPerceptron(trainExamples, testExamples, r = 0.2, epochs = 10):
+def testPerceptron(name, trainExamples, testExamples, r = 0.2, epochs = 10, batchSize = 1):
     '''
     Trains a Perceptron classifier from the training examples and then
     calculates the accuracy of the generated classifier on the test examples.
-    Returns a ratio of correct test examples over total test examples.
+
+    Prints out the results to the console
     '''
     featuresList = [x.features for x in trainExamples]
     labels = [x.label for x in trainExamples]
     p = Perceptron(len(featuresList[0]), r)
-    p.train(featuresList, labels, epochs, 1)
+
+    print 'training ' + name + ' ',
+    sys.stdout.flush()
+    p.train(featuresList, labels, epochs, batchSize)
+    print ' done'
     testFeatures = [x.features for x in testExamples]
     testLabels = [x.label for x in testExamples]
+
+    # Test accuracy on the training set
+    predictions = p.predict(featuresList)
+    accuracy = np.sum(labels == predictions) / float(len(labels))
+    print name, '  train accuracy:  ', accuracy
+
+    # Test accuracy on the testing set
     predictions = p.predict(testFeatures)
-    #print predictions
-    return np.sum(testLabels == predictions) / float(len(testLabels))
-    #print p.w.get_value()
-    #print p.predict(featuresList)
+    accuracy = np.sum(testLabels == predictions) / float(len(testLabels))
+    print name, '  test accuracy:   ', accuracy
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])
 
