@@ -2,13 +2,23 @@
 Utility functions for image operations.
 '''
 
-import cv2
+import numpy as np
+import Image
 
 def convertToGray(image):
     '''
     Converts a RGB image to grayscale
     '''
+    import cv2
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+def loadImage(imagepath):
+    '''
+    Loads the image (using PIL) into a numpy array as a grayscaled image
+    @return A numpy array containing pixel values (uint8)
+    '''
+    img = Image.open(imagepath).convert('L')
+    return np.asarray(img)
 
 def getSubImage(image, boundingbox):
     '''
@@ -34,9 +44,10 @@ def mirrorPadImage(image, newSize):
     @param image A numpy 2D array
     @param newSize A tuple of (height, width)
     '''
+    import cv2
     ydiff = newSize[0] - image.shape[0]
     xdiff = newSize[1] - image.shape[1]
-    
+
     # If the image is bigger in either dim than newSize, first crop it.
     if xdiff < 0 or ydiff < 0:
         boundingBox = (
@@ -49,7 +60,7 @@ def mirrorPadImage(image, newSize):
         # Truncate them to non-negative
         xdiff = max(0, xdiff)
         ydiff = max(0, ydiff)
-    
+
     # Pad the image
     return cv2.copyMakeBorder(image,
                               max(0, ydiff)/2,    # Added to top
@@ -71,4 +82,4 @@ def drawBox(image, boundingbox, pixelVal=0):
     image[top:bottom, right] = pixelVal
     image[top, left:right] = pixelVal
     image[bottom, left:right] = pixelVal
-    
+
