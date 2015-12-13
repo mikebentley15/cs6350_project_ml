@@ -54,7 +54,9 @@ Example:
   $ python create_image_cache.py labels/train.tsv subimages/train
 
 You will now see a single image for each of the labeled data in the specified
-directories.
+directories.  There will also be a cache file created in each of the
+directories that contains the pickled contents of the images with the labels,
+for use in training and testing.
 
 
 == Training ==
@@ -65,10 +67,8 @@ image cache.  This is done using train.py
 Example:
 
   $ python train.py \
-      --train-cache subimages/train \
-      --test-cache subimages/test   \
-      --train labels/train.tsv      \
-      --test labels/test.tsv        \
+      subimages/train/cache.pkl \
+      subimages/test/cache.pkl   \
       --output classifier.dat
 
 This example will take the two tsv files as well as the two image caches

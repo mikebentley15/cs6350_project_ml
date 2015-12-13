@@ -27,10 +27,8 @@ def parseArgs(arguments):
         Trains a classifier on the provided training data and prints testing results.
         ''',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--train-cache', required=True, help='Dir containing training image cache')
-    parser.add_argument('--test-cache', required=True, help='Dir containing testing image cache')
-    parser.add_argument('--train', required=True, help='path for tsv containing training labels')
-    parser.add_argument('--test', required=True, help='path for tsv containing training labels')
+    parser.add_argument('train', help='path for pickle file containing training cache')
+    parser.add_argument('test', help='path for pickle containing test data cache')
     parser.add_argument('-o', '--output', default='classifier.dat', help='output file for the classifier')
     parser.add_argument('-e', '--epochs', type=int, default=200)
     parser.add_argument('-b', '--batch-size', type=int, default=5)
@@ -44,8 +42,7 @@ def main(arguments):
     print 'Loading data ...      ',
     sys.stdout.flush()
     start = time.clock()
-    #xdata, ydata = loadrecords(args.train, args.train_cache)
-    with open(args.train_cache + '.pkl', 'r') as trainfile:
+    with open(args.train, 'r') as trainfile:
         xdata, ydata = pickle.load(trainfile)
     xdata = np.reshape(xdata, (xdata.shape[0], xdata.shape[1] * xdata.shape[2]))
     print 'done'
@@ -83,7 +80,7 @@ def main(arguments):
     print '  training  ',
     sys.stdout.flush()
     start = time.clock()
-    #p = Perceptron(xdata.shape[1], args.learning_rate)
+    #p = Perceptron(xdata.shape[1], r)
     p = AveragedPerceptron(xdata.shape[1], r)
     #p = SVM(xdata.shape[1], C, r)
     p.train(xdata, ydata, args.epochs, args.batch_size)
@@ -98,8 +95,7 @@ def main(arguments):
     print 'Loading test data ... ',
     sys.stdout.flush()
     start = time.clock()
-    #testx, testy = loadrecords(args.test, args.test_cache)
-    with open(args.test_cache + '.pkl', 'r') as testfile:
+    with open(args.test, 'r') as testfile:
         testx, testy = pickle.load(testfile)
     testx = np.reshape(testx, (testx.shape[0], testx.shape[1] * testx.shape[2]))
     print 'done'
@@ -183,30 +179,6 @@ def crossvalidate(cls, xdata, ydata, k, epochs, batch_size, hyperparams, names):
         if percents[i] > percents[maxIndex]:
             maxIndex = i
     return hyperparams[maxIndex]
-
-
-def loadrecords(csvfile, cachedir):
-    '''
-    Loads the records described by the csv file and cropped images in the
-    cachedir.
-    This returns xdata as a numpy 3D array, which is an array of 2D images.
-    The ydata will be a numpy 1D array of values of 1 or -1.  The ydata array
-    represents the sex field of the csv file.  +1 represents male and -1
-    represents female.
-    >>> xdata, ydata = loadrecords(csvfile, cachedir)
-    '''
-    xdata = []
-    ydata = []
-    with open(csvfile, 'r') as trainFile:
-        reader = csv.DictReader(trainFile, dialect='excel-tab')
-        Record = namedtuple('Record', 'imagepath line sex')
-        for line in reader:
-            filename = os.path.basename(line['imagePath'])
-            split = os.path.splitext(filename)
-            cachepic = split[0] + '-' + line['line'] + '.png'
-            xdata.append(imagefuncs.loadImage(os.path.join(cachedir, cachepic)))
-            ydata.append(1 if line['truth-sex'] == 'M' else -1)
-    return np.asarray(xdata), np.asarray(ydata)
 
 if __name__ == '__main__':
     origstdout = sys.stdout
