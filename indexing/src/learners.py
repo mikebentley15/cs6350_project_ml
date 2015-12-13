@@ -370,6 +370,7 @@ class AveragedPerceptron(Sgd):
         return answers.reshape((xdata_share.get_value(borrow=True).shape[0],))
 
 def parseArgs(arguments):
+    'Parse command-line arguments'
     parser = argparse.ArgumentParser(description='''
         Theano implementation of the vanilla Perceptron, and maybe other
         traininers too.
@@ -380,6 +381,7 @@ def parseArgs(arguments):
     return parser.parse_args(args=arguments)
 
 def main(arguments):
+    'Main entry point'
     args = parseArgs(arguments)
 
     r = args.learning_rate
