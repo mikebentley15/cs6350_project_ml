@@ -13,81 +13,6 @@ import os
 import random
 import sys
 
-class HiddenLayer(Sgd)
-    def __init__(self, dim_in, dim_out, r, x=None, activation=T.tanh):
-        """
-        Typical hidden layer of a MLP: units are fully-connected and have
-        sigmoidal activation function. Weight matrix W is of shape (n_in,n_out)
-        and the bias vector b is of shape (n_out,).
-
-        NOTE : The nonlinearity used here is tanh
-
-        Hidden unit activation is given by: tanh(dot(input,W) + b)
-
-        :type rng: numpy.random.RandomState
-        @param rng: a random number generator used to initialize weights
-
-        :type input: theano.tensor.dmatrix
-        @param input: a symbolic tensor of shape (n_examples, n_in)
-
-        :type n_in: int
-        @param n_in: dimensionality of input
-
-        :type n_out: int
-        @param n_out: number of hidden units
-
-        :type activation: theano.Op or function
-        @param activation: Non linearity to be applied in the hidden
-                           layer
-        """
-        super(self.__class__, self).__init__(perceptron_loss, dim_in, dim_out, r, x=x)
-        rand_range = np.sqrt(6. / (dim_in + dim_out))
-        w_arr = self.w.get_value(borrow=True)
-        w_arr[:] = np.random.uniform(low=-rand_range,
-                                     high=rand_range,
-                                     size=(dim_in, dim_out))
-        if activation == T.nnet.sigmoid:
-            w_arr *= 4
-
-        linear_combination = T.dot(
-
-
-        #self.input = input
-        #L_P=Perceptron(len(featuresList[0]), r)
-        #W_values = numpy.asarray(  # Not going to work because w is a shared
-        #            rng.uniform(
-        #                low=-numpy.sqrt(6. / (n_in + n_out)),
-        #                high=numpy.sqrt(6. / (n_in + n_out)),
-        #                size=(n_in, n_out)
-        #                ),
-        #            dtype=theano.config.floatX
-        #        )
-        #        if activation == theano.tensor.nnet.sigmoid:
-        #            L_P.W_values *= 4
-
-        #    W = theano.shared(value=W_values, name='W', borrow=True) ### Not going to work
-
-        #if b is None:
-        #    b_values = numpy.zeros((n_out,), dtype=theano.config.floatX)
-        #    b = theano.shared(value=b_values, name='b', borrow=True)
-
-        ##self.W = W
-        ##self.b = b
-        #L_P.w = W
-        #L_P.b = b
-
-
-        #### what to do from here?
-        #
-        #self.output = (
-        #    L_P.out if activation is None
-        #    else activation(L_P.out)
-        #)
-        ## parameters of the model
-        #self.params = [L_P.w, L_P.b]
-        
-                 
-
 class Sgd(object):
     def __init__(self, cost_gen, dim_in, dim_out, r, x=None):
         '''
@@ -379,6 +304,81 @@ def parseArgs(arguments):
     parser.add_argument('-e', '--epochs', type=int, default=200)
     parser.add_argument('-b', '--batch-size', type=int, default=5)
     return parser.parse_args(args=arguments)
+
+class HiddenLayer(Sgd):
+    def __init__(self, dim_in, dim_out, r, x=None, activation=T.tanh):
+        """
+        Typical hidden layer of a MLP: units are fully-connected and have
+        sigmoidal activation function. Weight matrix W is of shape (n_in,n_out)
+        and the bias vector b is of shape (n_out,).
+
+        NOTE : The nonlinearity used here is tanh
+
+        Hidden unit activation is given by: tanh(dot(input,W) + b)
+
+        :type rng: numpy.random.RandomState
+        @param rng: a random number generator used to initialize weights
+
+        :type input: theano.tensor.dmatrix
+        @param input: a symbolic tensor of shape (n_examples, n_in)
+
+        :type n_in: int
+        @param n_in: dimensionality of input
+
+        :type n_out: int
+        @param n_out: number of hidden units
+
+        :type activation: theano.Op or function
+        @param activation: Non linearity to be applied in the hidden
+                           layer
+        """
+        super(self.__class__, self).__init__(perceptron_loss, dim_in, dim_out, r, x=x)
+        rand_range = np.sqrt(6. / (dim_in + dim_out))
+        w_arr = self.w.get_value(borrow=True)
+        w_arr[:] = np.random.uniform(low=-rand_range,
+                                     high=rand_range,
+                                     size=(dim_in, dim_out))
+        if activation == T.nnet.sigmoid:
+            w_arr *= 4
+
+        #linear_combination = T.dot(
+
+
+        #self.input = input
+        #L_P=Perceptron(len(featuresList[0]), r)
+        #W_values = numpy.asarray(  # Not going to work because w is a shared
+        #            rng.uniform(
+        #                low=-numpy.sqrt(6. / (n_in + n_out)),
+        #                high=numpy.sqrt(6. / (n_in + n_out)),
+        #                size=(n_in, n_out)
+        #                ),
+        #            dtype=theano.config.floatX
+        #        )
+        #        if activation == theano.tensor.nnet.sigmoid:
+        #            L_P.W_values *= 4
+
+        #    W = theano.shared(value=W_values, name='W', borrow=True) ### Not going to work
+
+        #if b is None:
+        #    b_values = numpy.zeros((n_out,), dtype=theano.config.floatX)
+        #    b = theano.shared(value=b_values, name='b', borrow=True)
+
+        ##self.W = W
+        ##self.b = b
+        #L_P.w = W
+        #L_P.b = b
+
+
+        #### what to do from here?
+        #
+        #self.output = (
+        #    L_P.out if activation is None
+        #    else activation(L_P.out)
+        #)
+        ## parameters of the model
+        #self.params = [L_P.w, L_P.b]
+        
+                 
 
 def main(arguments):
     'Main entry point'

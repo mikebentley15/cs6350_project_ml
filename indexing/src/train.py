@@ -2,7 +2,7 @@
 Script for training on the LDS data
 '''
 
-import imagefuncs
+#import imagefuncs
 from learners import Perceptron, AveragedPerceptron, SVM
 from printTable import printTable
 from outdup import OutDuplicator
@@ -13,6 +13,7 @@ import argparse
 import csv
 import itertools
 import os
+import pickle
 import random
 import resource
 import sys
@@ -43,7 +44,9 @@ def main(arguments):
     print 'Loading data ...      ',
     sys.stdout.flush()
     start = time.clock()
-    xdata, ydata = loadrecords(args.train, args.train_cache)
+    #xdata, ydata = loadrecords(args.train, args.train_cache)
+    with open(args.train_cache + '.pkl', 'r') as trainfile:
+        xdata, ydata = pickle.load(trainfile)
     xdata = np.reshape(xdata, (xdata.shape[0], xdata.shape[1] * xdata.shape[2]))
     print 'done'
     kb_used = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
@@ -95,7 +98,9 @@ def main(arguments):
     print 'Loading test data ... ',
     sys.stdout.flush()
     start = time.clock()
-    testx, testy = loadrecords(args.test, args.test_cache)
+    #testx, testy = loadrecords(args.test, args.test_cache)
+    with open(args.test_cache + '.pkl', 'r') as testfile:
+        testx, testy = pickle.load(testfile)
     testx = np.reshape(testx, (testx.shape[0], testx.shape[1] * testx.shape[2]))
     print 'done'
     kb_used = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
