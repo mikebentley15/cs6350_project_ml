@@ -3,6 +3,7 @@ Implementation of some learning algorithms
 '''
 
 import TrainingExample
+from crossvalidate import crossvalidate
 
 import numpy as np
 import theano
@@ -21,7 +22,7 @@ class Sgd(object):
                     be a function of x, y, w, and b. (python function)
                     Example:
                     def cost(x, y, w, b):
-                        'Returns a logistic loss cost function'
+                        "Returns a logistic loss cost function"
                         prob = T.nnet.softmax(T.dot(x, w) + b)
                         return -T.mean(T.log(prob)[T.arange(y.shape[0]), y])
         @param dim_in
@@ -71,11 +72,12 @@ class Sgd(object):
         @param epochs Number of epochs to perform
         @param batchSize Number of samples to send in each iteration of SGD
         '''
-        xdata = np.asarray(xdata, dtype=theano.config.floatX)
+        xdata = np.asarray(xdata, dtype=theano.config.floatX) # Make copies
         ydata = np.asarray(ydata, dtype=np.int32)
         xlen = xdata.shape[0]
-        batchCount = xlen / batchSize
-        assert xlen % batchSize == 0, 'Example set is not divisible by batchSize'
+        # This effectively rounds up instead of down
+        batchCount = (xlen + batchSize - 1) / batchSize
+        #assert xlen % batchSize == 0, 'Example set is not divisible by batchSize'
 
         xdata_share = theano.shared(xdata, borrow=True)
         ydata_share = theano.shared(ydata, borrow=True)
