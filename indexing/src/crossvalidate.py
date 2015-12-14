@@ -130,8 +130,6 @@ def _crossvalidate_internal(cls, xdata, ydata, k, epochs, batch_size,
     print '  Epochs:', epochs
 
     # Perform the cross validation
-    # Shuffle before splitting, but use the same shuffle for each hyper-param
-    random.shuffle(xdata)
     xpieces = []
     ypieces = []
     # This effectively rounds up rather than down
@@ -179,7 +177,7 @@ def _train(cls, xpieces, ypieces, epochs, batch_size, params_k_product):
         accuracy = _train_oneiter(classifier, xpieces, ypieces,
                                   epochs, batch_size, idx)
         percentsDict[params] += accuracy
-        print accuracy
+        print ' ', accuracy
 
     for params in percentsDict:
         percentsDict[params] /= k

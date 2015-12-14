@@ -10,6 +10,7 @@ import theano
 import theano.tensor as T
 
 import argparse
+import itertools
 import os
 import random
 import sys
@@ -305,6 +306,9 @@ def parseArgs(arguments):
     parser.add_argument('-r', '--learning-rate', type=float, default=0.1)
     parser.add_argument('-e', '--epochs', type=int, default=200)
     parser.add_argument('-b', '--batch-size', type=int, default=5)
+    parser.add_argument('-d', '--base-dir', default='/home/pontsler/Documents', help='''
+        Directory where to find the data from the ML class (data0 and data1).
+        ''')
     return parser.parse_args(args=arguments)
 
 class HiddenLayer(Sgd):
@@ -404,12 +408,15 @@ def main(arguments):
         ]
 
     for name, trainingPath, testingPath in sets:
-        training = TrainingExample.fromSvm(os.path.join(basedir, trainingPath))
-        testing = TrainingExample.fromSvm(os.path.join(basedir, testingPath))
-        testPerceptron(name, training, testing, r, epochs)
+        training = TrainingExample.fromSvm(os.path.join(args.base_dir, trainingPath))
+        testing = TrainingExample.fromSvm(os.path.join(args.base_dir, testingPath))
+        testPerceptron(name, training, testing,
+                       crossepochs=10,
+                       epochs=epochs,
+                       batchSize=batchSize)
     print
 
-def testPerceptron(name, trainExamples, testExamples, r = 0.2, epochs = 10, batchSize = 1):
+def testPerceptron(name, trainExamples, testExamples, crossepochs=10, epochs=10, batchSize=1):
     '''
     Trains an averaged Perceptron classifier from the training examples and
     then calculates the accuracy of the generated classifier on the test
@@ -419,18 +426,32 @@ def testPerceptron(name, trainExamples, testExamples, r = 0.2, epochs = 10, batc
     '''
     featuresList = [x.features for x in trainExamples]
     labels = [x.label for x in trainExamples]
-    #p = Perceptron(len(featuresList[0]), r)
-    #p = AveragedPerceptron(len(featuresList[0]), r)
-    p = SVM(len(featuresList[0]),20,.01)
+    testFeatures = [x.features for x in testExamples]
+    testLabels = [x.label for x in testExamples]
+    rvalues = [0.01, 0.05, 0.1, 0.5]
+    Cvalues = [1, 10, 20, 40]
+    #rvalues = [0.01]
+    #Cvalues = [20]
+    hypers = list(itertools.product(Cvalues, rvalues))
+    names = ['C', 'r']
+    k = 5
+    print 'Performing cross-validation'
+    print '  k:              ', k
+    print '  parameters:     ', names
+    bestHyper = crossvalidate(SVM, featuresList, labels, k, crossepochs, batchSize,
+                              hypers, names)
+    print '  best params:    ', names, '=', bestHyper
+    print
 
+    #p = Perceptron(len(featuresList[0]), *bestHyper)
+    #p = AveragedPerceptron(len(featuresList[0]), *bestHyper)
+    p = SVM(len(featuresList[0]), *bestHyper)
     print 'training ' + name + ' ',
     sys.stdout.flush()
     p.train(featuresList, labels, epochs, batchSize)
     print ' done'
     #print 'w vector:       ', p.w.get_value(borrow=True).reshape(-1).tolist()
     #print 'w_avg vector:   ', p.w_avg.eval().reshape(-1).tolist()
-    testFeatures = [x.features for x in testExamples]
-    testLabels = [x.label for x in testExamples]
 
     # Test accuracy on the training set
     predictions = p.predict(featuresList)
