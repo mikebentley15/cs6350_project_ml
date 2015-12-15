@@ -14,6 +14,8 @@ import itertools
 import os
 import sys
 
+floatX = eval('np.' + theano.config.floatX)
+
 class Sgd(object):
     '''
     Base class for all stochastic gradient descent algorithms
@@ -251,7 +253,6 @@ class SVM(Sgd):
         @param r   Learning rate
         @param C   First Step
         '''
-        floatX = eval('np.' + theano.config.floatX)
         self.C = floatX(C)
         self.r0 = floatX(r)
         self.t = theano.shared(floatX(0),  name='t')
@@ -281,6 +282,40 @@ class SVM(Sgd):
         # to a 1D array.
         return answers.reshape((xdata_share.get_value(borrow=True).shape[0],))
 
+def _negative_log_likelihood(x, y, w, b, logreg=None):
+    '''
+    @param x: input
+    @param y: labels
+    @param w: weight matrix
+    @param b: bias vector
+    @param logreg: (LogisticRegression object) to save prob
+    '''
+    prob = T.nnet.softmax(x.dot(w) + b)
+    if logreg is not None:
+        logreg.prob = prob
+    return -T.mean(T.log(prob)[T.arange(y.shape[0]), y])
+
+def _logreg_cost(x, y, w, b, C, logreg=None):
+    return (
+        _negative_log_likelihood(x, y, w, b, logreg)
+        + C * l2_norm(w)
+        )
+
+class LogisticRegression(Sgd):
+    def __init__(self, dim_in, dim_out, r, C, x=None):
+        self.C = floatX(C)
+        self.r0 = floatX(r)
+        self.t = theano.shared(floatX(0),  name='t')
+        self.prob = None
+        r = theano.shared(self.r0, name='r')
+        my_cost = lambda x, y, w, b: _logreg_cost(x, y, w, b, self.C, self)
+        super(self.__class__, self).__init__(my_cost, dim_in, dim_out, r, x)
+        self.updates.append((self.r, self.r0 / (1 + self.r0 * self.t * self.C)))
+        self.updates.append((self.t, self.t + 1))
+
+    def predict(self, xdata):
+        return T.argmax(self.prob, axis=1).eval({self.x: xdata})
+
 class MlpHiddenLayer(object):
     def __init__(self, dim_in, dim_out, x=None, activation=T.tanh):
         '''
@@ -298,7 +333,7 @@ class MlpHiddenLayer(object):
         @param activation: (theano.Op or function) Non linearity to be applied
             in the hidden layer
         '''
-        w_range = np.sqrt(6. / (dim_in + dim_out))
+        w_range = floatX(np.sqrt(6. / (dim_in + dim_out)))
         self.w = theano.shared(
             value=np.asarray(
                 np.random.uniform(
@@ -362,15 +397,15 @@ class Mlp(Sgd):
             x=x,
             activation=T.tanh,
             )
-        self.C1 = C1
-        self.C2 = C2
-        self.r0 = r
+        self.C1 = floatX(C1)
+        self.C2 = floatX(C2)
+        self.r0 = floatX(r)
         my_cost = lambda xin, y, w, b: (
             mlp_cost(xin, y, w, b, self.C1, self.C2,
                      self.hiddenLayer.w, self.hiddenLayer.b)
             )
-        self.t = theano.shared(0, name='t')
-        r = theano.shared(r, name='r')
+        self.t = theano.shared(floatX(0), name='t')
+        r = theano.shared(self.r0, name='r')
         super(self.__class__, self).__init__(
             my_cost,
             dim_hidden,
@@ -402,9 +437,15 @@ class Mlp(Sgd):
         @return list of labels
         '''
         answers = T.sgn(self.hiddenLayer.output.dot(self.w) + self.b).eval({self.x: xdata})
+        answers = theano.function(
+            inputs=[self.x],
+            outputs=T.sgn(self.hiddenLayer.output.dot(self.w) + self.b),
+            allow_input_downcast=True,
+            name='predict',
+            )
         # The answers array is shaped as a (n,1) 2D array.  We want to reshape
         # to a 1D array.
-        return answers.reshape((len(xdata),))
+        return answers(xdata).reshape((len(xdata),))
 
 def parseArgs(arguments):
     'Parse command-line arguments'
@@ -466,6 +507,11 @@ def testPerceptron(name, trainExamples, testExamples, crossepochs=10,
 
     Prints out the results to the console
     '''
+    featuresList = [x.features for x in trainExamples]
+    labels = [x.label for x in trainExamples]
+    testFeatures = [x.features for x in testExamples]
+    testLabels = [x.label for x in testExamples]
+
     rvalues = [0.01, 0.05, 0.1, 0.5]
     Cvalues = [0.001, 0.005, 0.01, 0.05]
     dimvalues = [10, 20]
@@ -477,14 +523,15 @@ def testPerceptron(name, trainExamples, testExamples, crossepochs=10,
     #learner = SVM
     #hypers = list(itertools.product(rvalues, Cvalues))
     #names = ['r', 'C']
-    learner = lambda dim_in, dim_hidden, r, C2: Mlp(dim_in, dim_hidden, 1, r, 0, C2)
-    hypers = list(itertools.product(dimvalues, rvalues, Cvalues))
-    names = ['hidden-dimension', 'r', 'C']
+    learner = LogisticRegression
+    labels = [max(0, x) for x in labels]
+    testLabels = [max(0, x) for x in labels]
+    hypers = list(itertools.product([2], rvalues, Cvalues))
+    names = ['dim-out', 'r', 'C']
+    #learner = lambda dim_in, dim_hidden, r, C2: Mlp(dim_in, dim_hidden, 1, r, 0, C2)
+    #hypers = list(itertools.product(dimvalues, rvalues, Cvalues))
+    #names = ['hidden-dimension', 'r', 'C']
 
-    featuresList = [x.features for x in trainExamples]
-    labels = [x.label for x in trainExamples]
-    testFeatures = [x.features for x in testExamples]
-    testLabels = [x.label for x in testExamples]
     k = 5
     print 'Performing cross-validation'
     print '  k:              ', k
