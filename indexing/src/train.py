@@ -3,7 +3,7 @@ Script for training on the LDS data
 '''
 
 #import imagefuncs
-from learners import Perceptron, AveragedPerceptron, SVM, Mlp
+from learners import Perceptron, AveragedPerceptron, SVM, Mlp, LogisticRegression
 from outdup import OutDuplicator
 from crossvalidate import crossvalidate
 
@@ -93,8 +93,11 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
         'SVM': (SVM, list(itertools.product(rValues, CValues)), ['r', 'C']),
         'Perceptron': (Perceptron, [(x,) for x in rValues], ['r']),
         'AveragedPerceptron': (AveragedPerceptron, [(x,) for x in rValues], ['r']),
+        'LogisticRegression': (LogisticRegression, list(itertools.product([2], rValues, CValues)), ['dim_out', 'r', 'C']),
         }
     algorithm, hyperparams, hypernames = classifierMap[classifierName]
+    if classifierName == 'LogisticRegression':
+        ydata[:] = (ydata + 1) / 2
     start = time.clock()
     print 'Doing {k}-cross validation sequentially'.format(k=k)
     params = crossvalidate(algorithm, xdata, ydata, k, cross_epochs, batch_size,
@@ -142,7 +145,9 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
     with open(test, 'r') as testfile:
         testx, testy = pickle.load(testfile)
     testx = np.reshape(testx, (testx.shape[0], testx.shape[1] * testx.shape[2]))
-    print 'done'
+    if classifierName == 'LogisticRegression':
+        testy[:] = (testy + 1 / 2)
+    print ' done'
     kb_used = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     print '  elapsed time:       ', time.clock() - start
     print '  memory used:        ', kb_used, 'KB,', float(kb_used) / 2**10, 'MB'

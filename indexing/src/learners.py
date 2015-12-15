@@ -382,7 +382,7 @@ def mlp_cost(x, y, w, b, C1, C2, w_hidden, b_hidden):
     return (
         C1 * l1_norm(w, w_hidden)
         + C2 * l2_norm(w, w_hidden)
-        + svm_loss(x, y, w, b)
+        + perceptron_loss(x, y, w, b)
         )
 
 
