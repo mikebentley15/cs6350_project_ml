@@ -31,7 +31,7 @@ def parseArgs(arguments):
     parser.add_argument('-l', '--log', default='run.log', help='Where to duplicate stdout')
     parser.add_argument('-c', '--classifier', default='SVM', help='''
         Which classifier to train.  The choices are "SVM", "Perceptron",
-        "AveragedPerceptron", and "MLP".
+        "AveragedPerceptron", "LogisticRegression", and "MLP".
         ''')
     parser.add_argument('--crossval-epochs', type=int, default=10)
     return parser.parse_args(args=arguments)
@@ -83,7 +83,7 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
     CValues = [0.0001, 0.001, 0.01, 0.1]
     hiddenDims = [1, 20, 40, 80]
 
-    mlpLearner = lambda dim_in, dim_hidden, r, C2: Mlp(dim_in, dim_hidden, 1, r, 0, C2)
+    mlpLearner = lambda dim_in, dim_hidden, r, C: Mlp(dim_in, dim_hidden, 2, r, C)
     classifierMap = {
         'MLP': (
             mlpLearner,
@@ -96,7 +96,7 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
         'LogisticRegression': (LogisticRegression, list(itertools.product([2], rValues, CValues)), ['dim_out', 'r', 'C']),
         }
     algorithm, hyperparams, hypernames = classifierMap[classifierName]
-    if classifierName == 'LogisticRegression':
+    if classifierName in ('LogisticRegression', 'MLP'):
         ydata[:] = (ydata + 1) / 2
     start = time.clock()
     print 'Doing {k}-cross validation sequentially'.format(k=k)
@@ -145,7 +145,7 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
     with open(test, 'r') as testfile:
         testx, testy = pickle.load(testfile)
     testx = np.reshape(testx, (testx.shape[0], testx.shape[1] * testx.shape[2]))
-    if classifierName == 'LogisticRegression':
+    if classifierName in ('LogisticRegression', 'MLP'):
         testy[:] = (testy + 1 / 2)
     print ' done'
     kb_used = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
