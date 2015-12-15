@@ -3,25 +3,27 @@ Implementation of some learning algorithms
 '''
 
 import TrainingExample
+from crossvalidate import crossvalidate
 
 import numpy as np
 import theano
 import theano.tensor as T
 
 import argparse
+import itertools
 import os
 import random
 import sys
 
 class Sgd(object):
-    def __init__(self, cost_gen, dim_in, dim_out, r):
+    def __init__(self, cost_gen, dim_in, dim_out, r, x=None):
         '''
         @param cost_gen
                     A function for generating the cost function.  It needs to
                     be a function of x, y, w, and b. (python function)
                     Example:
                     def cost(x, y, w, b):
-                        'Returns a logistic loss cost function'
+                        "Returns a logistic loss cost function"
                         prob = T.nnet.softmax(T.dot(x, w) + b)
                         return -T.mean(T.log(prob)[T.arange(y.shape[0]), y])
         @param dim_in
@@ -29,10 +31,12 @@ class Sgd(object):
         @param dim_out
                     Dimension size of the output
         @param r    Learning rate (float)
+        @param x    Input variable.  If None, then a new one is created
+                    (i.e. it would be the first in the pipeline)
         '''
         self.r = r
 
-        self.x = T.matrix('x')
+        self.x = T.matrix('x') if x is None else x
         self.y = T.ivector('y')
 
         self.w = theano.shared(
@@ -69,11 +73,12 @@ class Sgd(object):
         @param epochs Number of epochs to perform
         @param batchSize Number of samples to send in each iteration of SGD
         '''
-        xdata = np.asarray(xdata, dtype=theano.config.floatX)
+        xdata = np.asarray(xdata, dtype=theano.config.floatX) # Make copies
         ydata = np.asarray(ydata, dtype=np.int32)
         xlen = xdata.shape[0]
-        batchCount = xlen / batchSize
-        assert xlen % batchSize == 0, 'Example set is not divisible by batchSize'
+        # This effectively rounds up instead of down
+        batchCount = (xlen + batchSize - 1) / batchSize
+        #assert xlen % batchSize == 0, 'Example set is not divisible by batchSize'
 
         xdata_share = theano.shared(xdata, borrow=True)
         ydata_share = theano.shared(ydata, borrow=True)
@@ -293,6 +298,7 @@ class AveragedPerceptron(Sgd):
         return answers.reshape((xdata_share.get_value(borrow=True).shape[0],))
 
 def parseArgs(arguments):
+    'Parse command-line arguments'
     parser = argparse.ArgumentParser(description='''
         Theano implementation of the vanilla Perceptron, and maybe other
         traininers too.
@@ -300,9 +306,88 @@ def parseArgs(arguments):
     parser.add_argument('-r', '--learning-rate', type=float, default=0.1)
     parser.add_argument('-e', '--epochs', type=int, default=200)
     parser.add_argument('-b', '--batch-size', type=int, default=5)
+    parser.add_argument('-d', '--base-dir', default='/home/pontsler/Documents', help='''
+        Directory where to find the data from the ML class (data0 and data1).
+        ''')
     return parser.parse_args(args=arguments)
 
+class HiddenLayer(Sgd):
+    def __init__(self, dim_in, dim_out, r, x=None, activation=T.tanh):
+        """
+        Typical hidden layer of a MLP: units are fully-connected and have
+        sigmoidal activation function. Weight matrix W is of shape (n_in,n_out)
+        and the bias vector b is of shape (n_out,).
+
+        NOTE : The nonlinearity used here is tanh
+
+        Hidden unit activation is given by: tanh(dot(input,W) + b)
+
+        :type rng: numpy.random.RandomState
+        @param rng: a random number generator used to initialize weights
+
+        :type input: theano.tensor.dmatrix
+        @param input: a symbolic tensor of shape (n_examples, n_in)
+
+        :type n_in: int
+        @param n_in: dimensionality of input
+
+        :type n_out: int
+        @param n_out: number of hidden units
+
+        :type activation: theano.Op or function
+        @param activation: Non linearity to be applied in the hidden
+                           layer
+        """
+        super(self.__class__, self).__init__(perceptron_loss, dim_in, dim_out, r, x=x)
+        rand_range = np.sqrt(6. / (dim_in + dim_out))
+        w_arr = self.w.get_value(borrow=True)
+        w_arr[:] = np.random.uniform(low=-rand_range,
+                                     high=rand_range,
+                                     size=(dim_in, dim_out))
+        if activation == T.nnet.sigmoid:
+            w_arr *= 4
+
+        #linear_combination = T.dot(
+
+
+        #self.input = input
+        #L_P=Perceptron(len(featuresList[0]), r)
+        #W_values = numpy.asarray(  # Not going to work because w is a shared
+        #            rng.uniform(
+        #                low=-numpy.sqrt(6. / (n_in + n_out)),
+        #                high=numpy.sqrt(6. / (n_in + n_out)),
+        #                size=(n_in, n_out)
+        #                ),
+        #            dtype=theano.config.floatX
+        #        )
+        #        if activation == theano.tensor.nnet.sigmoid:
+        #            L_P.W_values *= 4
+
+        #    W = theano.shared(value=W_values, name='W', borrow=True) ### Not going to work
+
+        #if b is None:
+        #    b_values = numpy.zeros((n_out,), dtype=theano.config.floatX)
+        #    b = theano.shared(value=b_values, name='b', borrow=True)
+
+        ##self.W = W
+        ##self.b = b
+        #L_P.w = W
+        #L_P.b = b
+
+
+        #### what to do from here?
+        #
+        #self.output = (
+        #    L_P.out if activation is None
+        #    else activation(L_P.out)
+        #)
+        ## parameters of the model
+        #self.params = [L_P.w, L_P.b]
+        
+                 
+
 def main(arguments):
+    'Main entry point'
     args = parseArgs(arguments)
 
     r = args.learning_rate
@@ -323,12 +408,15 @@ def main(arguments):
         ]
 
     for name, trainingPath, testingPath in sets:
-        training = TrainingExample.fromSvm(os.path.join(basedir, trainingPath))
-        testing = TrainingExample.fromSvm(os.path.join(basedir, testingPath))
-        testPerceptron(name, training, testing, r, epochs)
+        training = TrainingExample.fromSvm(os.path.join(args.base_dir, trainingPath))
+        testing = TrainingExample.fromSvm(os.path.join(args.base_dir, testingPath))
+        testPerceptron(name, training, testing,
+                       crossepochs=10,
+                       epochs=epochs,
+                       batchSize=batchSize)
     print
 
-def testPerceptron(name, trainExamples, testExamples, r = 0.2, epochs = 10, batchSize = 1):
+def testPerceptron(name, trainExamples, testExamples, crossepochs=10, epochs=10, batchSize=1):
     '''
     Trains an averaged Perceptron classifier from the training examples and
     then calculates the accuracy of the generated classifier on the test
@@ -338,18 +426,32 @@ def testPerceptron(name, trainExamples, testExamples, r = 0.2, epochs = 10, batc
     '''
     featuresList = [x.features for x in trainExamples]
     labels = [x.label for x in trainExamples]
-    #p = Perceptron(len(featuresList[0]), r)
-    #p = AveragedPerceptron(len(featuresList[0]), r)
-    p = SVM(len(featuresList[0]),20,.01)
+    testFeatures = [x.features for x in testExamples]
+    testLabels = [x.label for x in testExamples]
+    rvalues = [0.01, 0.05, 0.1, 0.5]
+    Cvalues = [1, 10, 20, 40]
+    #rvalues = [0.01]
+    #Cvalues = [20]
+    hypers = list(itertools.product(Cvalues, rvalues))
+    names = ['C', 'r']
+    k = 5
+    print 'Performing cross-validation'
+    print '  k:              ', k
+    print '  parameters:     ', names
+    bestHyper = crossvalidate(SVM, featuresList, labels, k, crossepochs, batchSize,
+                              hypers, names)
+    print '  best params:    ', names, '=', bestHyper
+    print
 
+    #p = Perceptron(len(featuresList[0]), *bestHyper)
+    #p = AveragedPerceptron(len(featuresList[0]), *bestHyper)
+    p = SVM(len(featuresList[0]), *bestHyper)
     print 'training ' + name + ' ',
     sys.stdout.flush()
     p.train(featuresList, labels, epochs, batchSize)
     print ' done'
     #print 'w vector:       ', p.w.get_value(borrow=True).reshape(-1).tolist()
     #print 'w_avg vector:   ', p.w_avg.eval().reshape(-1).tolist()
-    testFeatures = [x.features for x in testExamples]
-    testLabels = [x.label for x in testExamples]
 
     # Test accuracy on the training set
     predictions = p.predict(featuresList)

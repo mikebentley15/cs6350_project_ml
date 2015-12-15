@@ -3,7 +3,7 @@ Utility functions for image operations.
 '''
 
 import numpy as np
-import Image
+from PIL import Image
 
 def convertToGray(image):
     '''
