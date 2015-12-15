@@ -86,9 +86,6 @@ class Sgd(object):
         xdata_share = theano.shared(xdata, borrow=True)
         ydata_share = theano.shared(ydata, borrow=True)
 
-
-        # TODO: Try to figure out how to deal with batchSize values that don't
-        # TODO:   need to exactly divide input count.
         index = T.lscalar()
         trainingFunction = theano.function(
             inputs=[index],
@@ -227,7 +224,7 @@ def l2_norm(*arrays):
 
 def svm_cost(x, y, w, b, C):
     'Returns the cost function of the SVM'
-    return l2_norm(w) + C*svm_loss(x, y, w, b)
+    return C*l2_norm(w) + svm_loss(x, y, w, b)
 
 def svm_loss(x, y, w, b):
     '''
@@ -256,23 +253,12 @@ class SVM(Sgd):
         '''
         self.C = C
         my_loss = lambda x, y, w, b: svm_cost(x, y, w, b, self.C)
-        super(self.__class__, self).__init__(my_loss, dim, 1, r)
         self.r0 = r
-        self.r = theano.shared(
-            value=np.array(
-                [r],
-                dtype=theano.config.floatX
-                ),
-            name='r',
-            borrow=True
-            )
-        self.t = theano.shared(
-            value=np.zeros(1, dtype=np.int32),
-            name='t',
-            borrow=True
-            )
-        self.updates.append((self.r, self.r0/(1+self.r0*self.t/C)))
-        self.updates.append((self.t, self.t+1))
+        r = theano.shared(r, name='r')
+        self.t = theano.shared(0,  name='t')
+        super(self.__class__, self).__init__(my_loss, dim, 1, r)
+        self.updates.append((self.r, self.r0 / (1 + self.r0 * self.t * C)))
+        self.updates.append((self.t, self.t + 1))
 
     def predict(self, xdata):
         '''
@@ -378,8 +364,8 @@ class Mlp(Sgd):
         self.C1 = C1
         self.C2 = C2
         self.r0 = r
-        my_cost = lambda x, y, w, b: (
-            mlp_cost(x, y, w, b, self.C1, self.C2,
+        my_cost = lambda xin, y, w, b: (
+            mlp_cost(xin, y, w, b, self.C1, self.C2,
                      self.hiddenLayer.w, self.hiddenLayer.b)
             )
         self.t = theano.shared(0, name='t')
@@ -399,7 +385,7 @@ class Mlp(Sgd):
         self.updates.extend([
             (self.hiddenLayer.w, self.hiddenLayer.w - self.r * dcost_dhw),
             (self.hiddenLayer.b, self.hiddenLayer.b - self.r * dcost_dhb),
-            (self.r, self.r0 / (1 + self.r0 * self.t / self.C1)),
+            (self.r, self.r0 / (1 + self.r0 * self.t * self.C2)),
             (self.t, self.t + 1),
             ])
 
@@ -414,14 +400,10 @@ class Mlp(Sgd):
         @param xdata Feature list to classify
         @return list of labels
         '''
-        xdata_share = theano.shared(
-            np.asarray(xdata, dtype=theano.config.floatX),
-            borrow=True
-            )
         answers = T.sgn(self.hiddenLayer.output.dot(self.w) + self.b).eval({self.x: xdata})
         # The answers array is shaped as a (n,1) 2D array.  We want to reshape
         # to a 1D array.
-        return answers.reshape((xdata_share.get_value(borrow=True).shape[0],))
+        return answers.reshape((len(xdata),))
 
 def parseArgs(arguments):
     'Parse command-line arguments'
@@ -484,16 +466,18 @@ def testPerceptron(name, trainExamples, testExamples, crossepochs=10,
     Prints out the results to the console
     '''
     rvalues = [0.01, 0.05, 0.1, 0.5]
-    Cvalues = [1, 10, 20, 40]
+    Cvalues = [0.001, 0.005, 0.01, 0.05]
     dimvalues = [10, 20]
 
     #learner = Perceptron
     #learner = AveragedPerceptron
+    #hypers = [(x,) for x in rvalues]
+    #names = ['r']
     #learner = SVM
-    learner = lambda dim_in, dim_hidden, r, C2: Mlp(dim_in, dim_hidden, 1, r, 0, C2)
     #hypers = list(itertools.product(rvalues, Cvalues))
-    hypers = list(itertools.product(dimvalues, rvalues, Cvalues))
     #names = ['r', 'C']
+    learner = lambda dim_in, dim_hidden, r, C2: Mlp(dim_in, dim_hidden, 1, r, 0, C2)
+    hypers = list(itertools.product(dimvalues, rvalues, Cvalues))
     names = ['hidden-dimension', 'r', 'C']
 
     featuresList = [x.features for x in trainExamples]
@@ -509,7 +493,7 @@ def testPerceptron(name, trainExamples, testExamples, crossepochs=10,
     print '  best params:    ', names, '=', bestHyper
     print
 
-    p = learner(featuresList[0], *bestHyper)
+    p = learner(len(featuresList[0]), *bestHyper)
     print 'training ' + name + ' ',
     sys.stdout.flush()
     p.train(featuresList, labels, epochs, batchSize)

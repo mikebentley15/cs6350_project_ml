@@ -3,7 +3,7 @@ Script for training on the LDS data
 '''
 
 #import imagefuncs
-from learners import Perceptron, AveragedPerceptron, SVM
+from learners import Perceptron, AveragedPerceptron, SVM, Mlp
 from outdup import OutDuplicator
 from crossvalidate import crossvalidate
 
@@ -30,9 +30,10 @@ def parseArgs(arguments):
     parser.add_argument('-b', '--batch-size', type=int, default=5)
     parser.add_argument('-l', '--log', default='run.log', help='Where to duplicate stdout')
     parser.add_argument('-c', '--classifier', default='SVM', help='''
-        Which classifier to train.  The choices are "SVM", "Perceptron", and
-        "AveragedPerceptron".
+        Which classifier to train.  The choices are "SVM", "Perceptron",
+        "AveragedPerceptron", and "MLP".
         ''')
+    parser.add_argument('--crossval-epochs', type=int, default=10)
     return parser.parse_args(args=arguments)
 
 def main(arguments):
@@ -42,15 +43,15 @@ def main(arguments):
     try:
         with open(args.log, 'w') as runlog:
             sys.stdout = OutDuplicator([runlog, origstdout])
-            classifier = _runExperiment(args.train, args.test, args.epochs,
-                                        args.batch_size, args.classifier)
+            classifier = _runExperiment(args.train, args.test, args.crossval_epochs,
+                                        args.epochs, args.batch_size, args.classifier)
             with open(args.output, 'w') as classifierfile:
                 pickle.dump(classifier, classifierfile)
     finally:
         sys.stdout = origstdout
 
 
-def _runExperiment(train, test, epochs, batch_size, classifierName):
+def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName):
     '''
     Runs the experiment returning the classifier generated
     '''
@@ -79,8 +80,16 @@ def _runExperiment(train, test, epochs, batch_size, classifierName):
     print 'Perform cross-validation'
     k = 5
     rValues = [0.0001, 0.001, 0.01, 0.1, 0.5]
-    CValues = [0.0001, 0.001, 0.01, 0.1, 1, 10, 40, 100]
+    CValues = [0.0001, 0.001, 0.01, 0.1]
+    hiddenDims = [1, 20, 40, 80]
+
+    mlpLearner = lambda dim_in, dim_hidden, r, C2: Mlp(dim_in, dim_hidden, 1, r, 0, C2)
     classifierMap = {
+        'MLP': (
+            mlpLearner,
+            list(itertools.product(hiddenDims, rValues, CValues)),
+            ['hidden-dims', 'r', 'C']
+            ),
         'SVM': (SVM, list(itertools.product(rValues, CValues)), ['r', 'C']),
         'Perceptron': (Perceptron, [(x,) for x in rValues], ['r']),
         'AveragedPerceptron': (AveragedPerceptron, [(x,) for x in rValues], ['r']),
@@ -88,7 +97,7 @@ def _runExperiment(train, test, epochs, batch_size, classifierName):
     algorithm, hyperparams, hypernames = classifierMap[classifierName]
     start = time.clock()
     print 'Doing {k}-cross validation sequentially'.format(k=k)
-    params = crossvalidate(algorithm, xdata, ydata, k, epochs, batch_size,
+    params = crossvalidate(algorithm, xdata, ydata, k, cross_epochs, batch_size,
                            hyperparams, hypernames)
     print '  elapsed time:       ', time.clock() - start
     print '  best params:        ', params
