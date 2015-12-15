@@ -79,8 +79,8 @@ class Sgd(object):
         @param epochs Number of epochs to perform
         @param batchSize Number of samples to send in each iteration of SGD
         '''
-        xdata = np.asarray(xdata.copy(), dtype=theano.config.floatX) # Make copies
-        ydata = np.asarray(ydata.copy(), dtype=np.int32)
+        xdata = np.asarray(xdata, dtype=theano.config.floatX).copy() # Make copies
+        ydata = np.asarray(ydata, dtype=np.int32).copy()
         xlen = xdata.shape[0]
         # This effectively rounds up instead of down
         batchCount = (xlen + batchSize - 1) / batchSize
@@ -508,10 +508,10 @@ def testPerceptron(name, trainExamples, testExamples, crossepochs=10,
 
     Prints out the results to the console
     '''
-    featuresList = [x.features for x in trainExamples]
-    labels = [x.label for x in trainExamples]
-    testFeatures = [x.features for x in testExamples]
-    testLabels = [x.label for x in testExamples]
+    featuresList = np.asarray([x.features for x in trainExamples], dtype=theano.config.floatX)
+    labels = np.asarray([x.label for x in trainExamples], dtype=theano.config.floatX)
+    testFeatures = np.asarray([x.features for x in testExamples], dtype=theano.config.floatX)
+    testLabels = np.asarray([x.label for x in testExamples], dtype=theano.config.floatX)
 
     rvalues = [0.01, 0.05, 0.1, 0.5]
     Cvalues = [0.001, 0.005, 0.01, 0.05]
@@ -525,10 +525,10 @@ def testPerceptron(name, trainExamples, testExamples, crossepochs=10,
     #hypers = list(itertools.product(rvalues, Cvalues))
     #names = ['r', 'C']
     #learner = LogisticRegression
+    labels = (labels + 1) / 2
+    testLabels = (testLabels + 1) / 2
     #hypers = list(itertools.product([2], rvalues, Cvalues))
     #names = ['dim-out', 'r', 'C']
-    labels = [max(0, x) for x in labels]
-    testLabels = [max(0, x) for x in labels]
     learner = lambda dim_in, dim_hidden, r, C: Mlp(dim_in, dim_hidden, 2, r, C)
     hypers = list(itertools.product(dimvalues, rvalues, Cvalues))
     names = ['hidden-dimension', 'r', 'C']
