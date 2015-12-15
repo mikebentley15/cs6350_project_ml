@@ -12,10 +12,13 @@ import theano.tensor as T
 import argparse
 import itertools
 import os
-import random
 import sys
 
 class Sgd(object):
+    '''
+    Base class for all stochastic gradient descent algorithms
+    '''
+
     def __init__(self, cost_gen, dim_in, dim_out, r, x=None):
         '''
         @param cost_gen
@@ -59,12 +62,13 @@ class Sgd(object):
 
         self.cost = cost_gen(self.x, self.y, self.w, self.b)
         self.params = [self.w, self.b]
-        self.dcost_dw = T.grad(cost=self.cost, wrt=self.w)
-        self.dcost_db = T.grad(cost=self.cost, wrt=self.b)
+        dcost_dw = T.grad(cost=self.cost, wrt=self.w)
+        dcost_db = T.grad(cost=self.cost, wrt=self.b)
         self.updates = [
-            (self.w, self.w - self.r * self.dcost_dw),
-            (self.b, self.b - self.r * self.dcost_db),
+            (self.w, self.w - self.r * dcost_dw),
+            (self.b, self.b - self.r * dcost_db),
             ]
+        self.output = T.sgn(self.x.dot(self.w) + self.b)
 
     def train(self, xdata, ydata, epochs, batchSize):
         '''
@@ -78,7 +82,6 @@ class Sgd(object):
         xlen = xdata.shape[0]
         # This effectively rounds up instead of down
         batchCount = (xlen + batchSize - 1) / batchSize
-        #assert xlen % batchSize == 0, 'Example set is not divisible by batchSize'
 
         xdata_share = theano.shared(xdata, borrow=True)
         ydata_share = theano.shared(ydata, borrow=True)
@@ -102,15 +105,7 @@ class Sgd(object):
             perm = np.random.permutation(xlen)
             xdata[:] = xdata[perm]
             ydata[:] = ydata[perm]
-            #print 'epoch', epoch+1
-            #print '  w', self.w.get_value().reshape(len(xdata[0]))
-            #print '  b', self.b.get_value()
-            #print '  xdata', xdata
-            #print '  ydata', ydata
             for minibatchIndex in xrange(batchCount):
-                #print '  minibatch', minibatchIndex+1
-                #print '    xdata[{0}]'.format(minibatchIndex), xdata[minibatchIndex]
-                #print '    ydata[{0}]'.format(minibatchIndex), ydata[minibatchIndex]
                 # This is where training actually occurs
                 trainingFunction(minibatchIndex)
             # Print a period at every 10% done
@@ -129,19 +124,6 @@ def perceptron_loss(x, y, w, b):
     @return The perceptron loss function with x, y, w, and b inside
     '''
     return T.sum(T.maximum(0, - y * (x.dot(w) + b).transpose()))
-    
-    
-def SVM_loss(x, y, w, b, C):
-    '''
-    Returns a perceptron loss function
-
-    @param x  Features (theano matrix)
-    @param y  Label (theano ivector)
-    @param w  Weight matrix (theano matrix)
-    @param b  Bias vector (theano vector)
-    @return The perceptron loss function with x, y, w, and b inside
-    '''
-    return T.sum(T.maximum(0, 1 - y * (x.dot(w) + b).transpose()))    
 
 class Perceptron(Sgd):
     '''
@@ -168,68 +150,10 @@ class Perceptron(Sgd):
         @param xdata Feature list to classify
         @return list of labels
         '''
-        xdata_share = theano.shared(
-            np.asarray(xdata, dtype=theano.config.floatX),
-            borrow=True
-            )
-        answers = T.sgn(xdata_share.dot(self.w) + self.b).eval()
+        answers = T.sgn(self.output).eval({self.x : xdata})
         # The answers array is shaped as a (n,1) 2D array.  We want to reshape
         # to a 1D array.
-        return answers.reshape((xdata_share.get_value(borrow=True).shape[0],))
-
-class SVM(Sgd):
-    '''
-    Implements the SVM algorithm.
-
-    Note: a bias term is already present.
-    '''
-
-    def __init__(self, dim, C, r):
-        '''
-        @param dim Number of dimensions in the input
-        @param r   Learning rate
-        @param C   First Step
-        '''
-        self.C = C
-        my_loss = lambda x, y, w, b: SVM_loss(x, y, w, b, self.C)
-        super(self.__class__, self).__init__(my_loss, dim, 1, r)
-        self.r0 = r
-        self.r = theano.shared(
-            value=np.array([r],
-                dtype=theano.config.floatX
-            ),
-            name='r',
-            borrow=True
-            )
-        self.t = theano.shared(
-            value=np.zeros(1,
-                dtype=np.int32
-            ),
-            name='t',
-            borrow=True
-            )
-        self.updates.append((self.r, self.r0/(1+self.r0*self.t/C)))
-        self.updates.append((self.t, self.t+1))
-
-    def predict(self, xdata):
-        '''
-        Takes an itterable containing the data as a 2D array.
-
-        Returns a list of labels of -1 or +1.  There is a small probability of
-        getting a label of 0 which happens if the point is exactly on the
-        hyperplane.
-
-        @param xdata Feature list to classify
-        @return list of labels
-        '''
-        xdata_share = theano.shared(
-            np.asarray(xdata, dtype=theano.config.floatX),
-            borrow=True
-            )
-        answers = T.sgn(xdata_share.dot(self.w) + self.b).eval()
-        # The answers array is shaped as a (n,1) 2D array.  We want to reshape
-        # to a 1D array.
-        return answers.reshape((xdata_share.get_value(borrow=True).shape[0],))
+        return answers.reshape((xdata.shape[0],))
 
 class AveragedPerceptron(Sgd):
     '''
@@ -288,11 +212,220 @@ class AveragedPerceptron(Sgd):
         @param xdata Feature list to classify
         @return list of labels
         '''
+        answers = T.sgn(self.output).eval({self.x : xdata})
+        # The answers array is shaped as a (n,1) 2D array.  We want to reshape
+        # to a 1D array.
+        return answers.reshape((xdata.shape[0],))
+
+def l1_norm(*arrays):
+    'Returns the L1 norm of a list of passed in arrays'
+    return sum(abs(x).sum() for x in arrays)
+
+def l2_norm(*arrays):
+    'Returns the L2 norm of a list of passed in arrays'
+    return sum((x**2).sum() for x in arrays)
+
+def svm_cost(x, y, w, b, C):
+    'Returns the cost function of the SVM'
+    return l2_norm(w) + C*svm_loss(x, y, w, b)
+
+def svm_loss(x, y, w, b):
+    '''
+    Returns a perceptron loss function
+
+    @param x  Features (theano matrix)
+    @param y  Label (theano ivector)
+    @param w  Weight matrix (theano matrix)
+    @param b  Bias vector (theano vector)
+    @return The perceptron loss function with x, y, w, and b inside
+    '''
+    return T.maximum(0, 1 - y * (x.dot(w) + b).transpose()).sum()
+
+class SVM(Sgd):
+    '''
+    Implements the SVM algorithm.
+
+    Note: a bias term is already present.
+    '''
+
+    def __init__(self, dim, C, r):
+        '''
+        @param dim Number of dimensions in the input
+        @param r   Learning rate
+        @param C   First Step
+        '''
+        self.C = C
+        my_loss = lambda x, y, w, b: svm_cost(x, y, w, b, self.C)
+        super(self.__class__, self).__init__(my_loss, dim, 1, r)
+        self.r0 = r
+        self.r = theano.shared(
+            value=np.array(
+                [r],
+                dtype=theano.config.floatX
+                ),
+            name='r',
+            borrow=True
+            )
+        self.t = theano.shared(
+            value=np.zeros(1, dtype=np.int32),
+            name='t',
+            borrow=True
+            )
+        self.updates.append((self.r, self.r0/(1+self.r0*self.t/C)))
+        self.updates.append((self.t, self.t+1))
+
+    def predict(self, xdata):
+        '''
+        Takes an itterable containing the data as a 2D array.
+
+        Returns a list of labels of -1 or +1.  There is a small probability of
+        getting a label of 0 which happens if the point is exactly on the
+        hyperplane.
+
+        @param xdata Feature list to classify
+        @return list of labels
+        '''
         xdata_share = theano.shared(
             np.asarray(xdata, dtype=theano.config.floatX),
             borrow=True
             )
-        answers = T.sgn(xdata_share.dot(self.w_avg) + self.b_avg).eval()
+        answers = T.sgn(xdata_share.dot(self.w) + self.b).eval()
+        # The answers array is shaped as a (n,1) 2D array.  We want to reshape
+        # to a 1D array.
+        return answers.reshape((xdata_share.get_value(borrow=True).shape[0],))
+
+class MlpHiddenLayer(object):
+    def __init__(self, dim_in, dim_out, x=None, activation=T.tanh):
+        '''
+        The hidden layer used in Multi-Layered Perceptron (MLP).  The two
+        layers are fully connected.  The two different supported activation
+        functions are T.tanh and T.nnet.sigmoid.  You could pass in a different
+        activation function, but the initialization will match what would have
+        been done for tanh.
+
+        @param dim_in: dimensionality of input
+        @param dim_out: dimensionality of output
+        @param r: hyper-parameter learning-rate
+        @param x: (theano.tensor.dmatrix) input matrix, or None if this is the
+            beginning layer
+        @param activation: (theano.Op or function) Non linearity to be applied
+            in the hidden layer
+        '''
+        w_range = np.sqrt(6. / (dim_in + dim_out))
+        self.w = theano.shared(
+            value=np.random.uniform(
+                low=-w_range,
+                high=w_range,
+                size=(dim_in, dim_out),
+                dtype=theano.config.floatX,
+                ),
+            name='w',
+            borrow=True,
+            )
+        self.b = theano.shared(
+            value=np.zeros(
+                (dim_out,),
+                dtype=theano.config.floatX,
+                ),
+            name='b',
+            borrow=True,
+            )
+        if x is None:
+            x = T.matrix('x')
+        self.x = x
+        self.output = activation(x.dot(self.w) + self.b)
+        self.params = [self.w, self.b]
+
+
+def mlp_cost(x, y, w, b, C1, C2, w_hidden, b_hidden):
+    '''
+    @param x: input features
+    @param y: correct labels of -1 or 1
+    @param w: weight vector
+    @param b: bias term
+    @param C1: constant in front of the L1 loss
+    @param C2: constant in front of the L2 loss
+    @param w_hidden: hidden layer weight matrix
+    @param b_hidden: hidden layer bias vector
+    '''
+    # TODO: replace svm_loss with some other loss
+    return (
+        C1 * l1_norm(w, w_hidden)
+        + C2 * l2_norm(w, w_hidden)
+        + svm_loss(x, y, w, b)
+        )
+
+
+class Mlp(Sgd):
+    def __init__(self, dim_in, dim_hidden, dim_out, r, C1, C2, x=None):
+        '''
+        @param dim_in: number of input features
+        @param dim_hidden: number of nodes in the hidden layer
+        @param dim_out: number of outputs
+        @param r: learning rate
+        @param x: (theano.tensor.TensorType - one minibatch) symbolic variable
+            for the input features.  If none, then it is assumed that this is
+            the first layer and a variable will be created.
+        '''
+        self.hiddenLayer = MlpHiddenLayer(
+            dim_in,
+            dim_hidden,
+            x=x,
+            activation=T.tanh,
+            )
+        self.C1 = C1
+        self.C2 = C2
+        self.r0 = r
+        my_cost = lambda x, y, w, b: (
+            mlp_cost(x, y, w, b, self.C1, self.C2,
+                     self.hiddenLayer.w, self.hiddenLayer.b)
+            )
+        self.t = theano.shared(
+            value=np.zeros(1, dtype=np.int32),
+            name='t',
+            borrow=True,
+            )
+        r = theano.shared(
+            value=np.asarray(
+                [r],
+                dtype=theano.config.floatX,
+                ),
+            name='r',
+            borrow=True,
+            )
+        super(self.__class__, self).__init__(
+            my_cost,
+            dim_hidden,
+            dim_out,
+            r,
+            self.hiddenLayer.output
+            )
+        self.params.extend(self.hiddenLayer.params)
+        dcost_dhw = T.grad(cost=self.cost, wrt=self.hiddenLayer.w)
+        dcost_dhb = T.grad(cost=self.cost, wrt=self.hiddenLayer.b)
+        self.updates.extend([
+            (self.hiddenLayer.w, self.hiddenLayer.w - self.r * dcost_dhw),
+            (self.hiddenLayer.b, self.hiddenLayer.b - self.r * dcost_dhb),
+            (self.r, self.r0 / (1 + self.r0 * self.t / self.C1)),
+            (self.t, self.t + 1),
+            ])
+
+    def predict(self, xdata):
+        '''
+        Takes an itterable containing the data as a 2D array.
+
+        Returns a list of labels of -1 or +1.  There is a small probability of
+        getting a label of 0 which happens if the point is exactly on the
+        hyperplane.
+
+        @param xdata Feature list to classify
+        @return list of labels
+        '''
+        xdata_share = theano.shared(
+            np.asarray(xdata, dtype=theano.config.floatX),
+            borrow=True
+            )
+        answers = T.sgn(xdata_share.dot(self.w) + self.b).eval()
         # The answers array is shaped as a (n,1) 2D array.  We want to reshape
         # to a 1D array.
         return answers.reshape((xdata_share.get_value(borrow=True).shape[0],))
@@ -306,85 +439,13 @@ def parseArgs(arguments):
     parser.add_argument('-r', '--learning-rate', type=float, default=0.1)
     parser.add_argument('-e', '--epochs', type=int, default=200)
     parser.add_argument('-b', '--batch-size', type=int, default=5)
-    parser.add_argument('-d', '--base-dir', default='/home/pontsler/Documents', help='''
+    parser.add_argument(
+        '-d', '--base-dir',
+        default='/home/pontsler/Documents',
+        help='''
         Directory where to find the data from the ML class (data0 and data1).
         ''')
     return parser.parse_args(args=arguments)
-
-class HiddenLayer(Sgd):
-    def __init__(self, dim_in, dim_out, r, x=None, activation=T.tanh):
-        """
-        Typical hidden layer of a MLP: units are fully-connected and have
-        sigmoidal activation function. Weight matrix W is of shape (n_in,n_out)
-        and the bias vector b is of shape (n_out,).
-
-        NOTE : The nonlinearity used here is tanh
-
-        Hidden unit activation is given by: tanh(dot(input,W) + b)
-
-        :type rng: numpy.random.RandomState
-        @param rng: a random number generator used to initialize weights
-
-        :type input: theano.tensor.dmatrix
-        @param input: a symbolic tensor of shape (n_examples, n_in)
-
-        :type n_in: int
-        @param n_in: dimensionality of input
-
-        :type n_out: int
-        @param n_out: number of hidden units
-
-        :type activation: theano.Op or function
-        @param activation: Non linearity to be applied in the hidden
-                           layer
-        """
-        super(self.__class__, self).__init__(perceptron_loss, dim_in, dim_out, r, x=x)
-        rand_range = np.sqrt(6. / (dim_in + dim_out))
-        w_arr = self.w.get_value(borrow=True)
-        w_arr[:] = np.random.uniform(low=-rand_range,
-                                     high=rand_range,
-                                     size=(dim_in, dim_out))
-        if activation == T.nnet.sigmoid:
-            w_arr *= 4
-
-        #linear_combination = T.dot(
-
-
-        #self.input = input
-        #L_P=Perceptron(len(featuresList[0]), r)
-        #W_values = numpy.asarray(  # Not going to work because w is a shared
-        #            rng.uniform(
-        #                low=-numpy.sqrt(6. / (n_in + n_out)),
-        #                high=numpy.sqrt(6. / (n_in + n_out)),
-        #                size=(n_in, n_out)
-        #                ),
-        #            dtype=theano.config.floatX
-        #        )
-        #        if activation == theano.tensor.nnet.sigmoid:
-        #            L_P.W_values *= 4
-
-        #    W = theano.shared(value=W_values, name='W', borrow=True) ### Not going to work
-
-        #if b is None:
-        #    b_values = numpy.zeros((n_out,), dtype=theano.config.floatX)
-        #    b = theano.shared(value=b_values, name='b', borrow=True)
-
-        ##self.W = W
-        ##self.b = b
-        #L_P.w = W
-        #L_P.b = b
-
-
-        #### what to do from here?
-        #
-        #self.output = (
-        #    L_P.out if activation is None
-        #    else activation(L_P.out)
-        #)
-        ## parameters of the model
-        #self.params = [L_P.w, L_P.b]
-        
-                 
 
 def main(arguments):
     'Main entry point'
@@ -408,15 +469,20 @@ def main(arguments):
         ]
 
     for name, trainingPath, testingPath in sets:
-        training = TrainingExample.fromSvm(os.path.join(args.base_dir, trainingPath))
-        testing = TrainingExample.fromSvm(os.path.join(args.base_dir, testingPath))
+        training = TrainingExample.fromSvm(
+            os.path.join(args.base_dir, trainingPath)
+            )
+        testing = TrainingExample.fromSvm(
+            os.path.join(args.base_dir, testingPath)
+            )
         testPerceptron(name, training, testing,
                        crossepochs=10,
                        epochs=epochs,
                        batchSize=batchSize)
     print
 
-def testPerceptron(name, trainExamples, testExamples, crossepochs=10, epochs=10, batchSize=1):
+def testPerceptron(name, trainExamples, testExamples, crossepochs=10,
+                   epochs=10, batchSize=1):
     '''
     Trains an averaged Perceptron classifier from the training examples and
     then calculates the accuracy of the generated classifier on the test
@@ -430,16 +496,14 @@ def testPerceptron(name, trainExamples, testExamples, crossepochs=10, epochs=10,
     testLabels = [x.label for x in testExamples]
     rvalues = [0.01, 0.05, 0.1, 0.5]
     Cvalues = [1, 10, 20, 40]
-    #rvalues = [0.01]
-    #Cvalues = [20]
     hypers = list(itertools.product(Cvalues, rvalues))
     names = ['C', 'r']
     k = 5
     print 'Performing cross-validation'
     print '  k:              ', k
     print '  parameters:     ', names
-    bestHyper = crossvalidate(SVM, featuresList, labels, k, crossepochs, batchSize,
-                              hypers, names)
+    bestHyper = crossvalidate(SVM, featuresList, labels, k, crossepochs,
+                              batchSize, hypers, names)
     print '  best params:    ', names, '=', bestHyper
     print
 
@@ -450,8 +514,6 @@ def testPerceptron(name, trainExamples, testExamples, crossepochs=10, epochs=10,
     sys.stdout.flush()
     p.train(featuresList, labels, epochs, batchSize)
     print ' done'
-    #print 'w vector:       ', p.w.get_value(borrow=True).reshape(-1).tolist()
-    #print 'w_avg vector:   ', p.w_avg.eval().reshape(-1).tolist()
 
     # Test accuracy on the training set
     predictions = p.predict(featuresList)
@@ -462,9 +524,6 @@ def testPerceptron(name, trainExamples, testExamples, crossepochs=10, epochs=10,
     predictions = p.predict(testFeatures)
     accuracy = np.sum(testLabels == predictions) / float(len(testLabels))
     print name, '  test accuracy:   ', accuracy
-    
-
-    
 
 if __name__ == '__main__':
     main(sys.argv[1:])
