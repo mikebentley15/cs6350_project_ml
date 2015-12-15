@@ -314,7 +314,13 @@ class LogisticRegression(Sgd):
         self.updates.append((self.t, self.t + 1))
 
     def predict(self, xdata):
-        return T.argmax(self.prob, axis=1).eval({self.x: xdata})
+        answers = theano.function(
+            inputs=[self.x],
+            outputs=T.argmax(self.prob, axis=1),
+            allow_input_downcast=True,
+            name='predict',
+            )
+        return answers(xdata)
 
 class MlpHiddenLayer(object):
     def __init__(self, dim_in, dim_out, x=None, activation=T.tanh):
