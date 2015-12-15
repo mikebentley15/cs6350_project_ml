@@ -79,8 +79,8 @@ class Sgd(object):
         @param epochs Number of epochs to perform
         @param batchSize Number of samples to send in each iteration of SGD
         '''
-        xdata = np.asarray(xdata, dtype=theano.config.floatX) # Make copies
-        ydata = np.asarray(ydata, dtype=np.int32)
+        xdata = np.asarray(xdata.copy(), dtype=theano.config.floatX) # Make copies
+        ydata = np.asarray(ydata.copy(), dtype=np.int32)
         xlen = xdata.shape[0]
         # This effectively rounds up instead of down
         batchCount = (xlen + batchSize - 1) / batchSize

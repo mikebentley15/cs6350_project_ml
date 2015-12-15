@@ -51,12 +51,13 @@ class _CrossValidationThread(threading.Thread):
         self.epochs = epochs
         self.batch_size = batch_size
         self.accuracy = None
+        self.train_accuracy = None
     def run(self):
         '''
         Runs the training assigned to this thread
         '''
         # TODO: get hyperparams and k from shared queue
-        self.accuracy = _train_oneiter(
+        self.accuracy, self.train_accuracy = _train_oneiter(
             self.classifier,
             self.xpieces,
             self.ypieces,
@@ -64,7 +65,7 @@ class _CrossValidationThread(threading.Thread):
             self.batch_size,
             self.idx
             )
-        print '  {0}-{1}:'.format(self.hyperparams, self.idx), self.accuracy
+        print '  {0}-{1}:'.format(self.hyperparams, self.idx), self.accuracy, '  ', self.train_accuracy
 
 def _train_oneiter(classifier, xpieces, ypieces, epochs, batch_size, idx):
     '''
@@ -79,7 +80,9 @@ def _train_oneiter(classifier, xpieces, ypieces, epochs, batch_size, idx):
                         descent
     @param idx - Which iteration of the k-fold cross-validation
 
-    @return accuracy for this iteration (a number between 0 and 1)
+    @return accuracy for this iteration as a tuple
+        (test_accuracy, train_accuracy)
+        Each numer is between 0 and 1)
     '''
     xtrain = xpieces[:idx] + xpieces[idx+1:]
     ytrain = ypieces[:idx] + ypieces[idx+1:]
@@ -94,7 +97,9 @@ def _train_oneiter(classifier, xpieces, ypieces, epochs, batch_size, idx):
     #    classifier.train(subtrain[0], subtrain[1], epochs, batch_size)
     predictions = classifier.predict(xtest)
     accuracy = np.sum(predictions == ytest) / float(len(ytest))
-    return accuracy
+    predictions = classifier.predict(xdata)
+    train_accuracy = np.sum(predictions == ydata) / float(len(ydata))
+    return (accuracy, train_accuracy)
 
 def _crossvalidate_internal(cls, xdata, ydata, k, epochs, batch_size,
                             hyperparams, names, trainfunc):
@@ -120,7 +125,8 @@ def _crossvalidate_internal(cls, xdata, ydata, k, epochs, batch_size,
         - params_k_product: equal to
              itertools.product(hyperparams, range(k))
     '''
-    percents = np.zeros(len(hyperparams))
+    test_percents = np.zeros(len(hyperparams))
+    train_percents = np.zeros(len(hyperparams))
     if k == len(xdata):
         crossvalType = 'leave-one-out'
     else:
@@ -138,16 +144,20 @@ def _crossvalidate_internal(cls, xdata, ydata, k, epochs, batch_size,
         xpieces.append(xdata[i*pieceSize : (i+1)*pieceSize])
         ypieces.append(ydata[i*pieceSize : (i+1)*pieceSize])
     params_k_product = list(itertools.product(hyperparams, range(k)))
-    percentsDict = trainfunc(cls, xpieces, ypieces, epochs, batch_size,
-                             params_k_product)
-    percents = [percentsDict[x] for x in hyperparams]
+    percentsDict, trainPercentsDict = trainfunc(
+        cls, xpieces, ypieces, epochs, batch_size, params_k_product
+        )
+    test_percents = [percentsDict[x] for x in hyperparams]
+    train_percents = [trainPercentsDict[x] for x in hyperparams]
 
     # Print the results
     crossValPrintableTable = [names + [
-        'Average Percent',
+        'Testing Percent',
+        'Training Percent',
         ]]
     columns = zip(*hyperparams) + [
-        percents,
+        test_percents,
+        train_percents,
         ]
     crossValPrintableTable.extend(zip(*columns))
     print
@@ -156,16 +166,20 @@ def _crossvalidate_internal(cls, xdata, ydata, k, epochs, batch_size,
     print
 
     maxIndex = 0
-    for i in xrange(len(percents)):
-        if percents[i] > percents[maxIndex]:
+    for i in xrange(len(test_percents)):
+        if test_percents[i] > test_percents[maxIndex]:
             maxIndex = i
     return hyperparams[maxIndex]
 
 def _train(cls, xpieces, ypieces, epochs, batch_size, params_k_product):
     '''
     Performs training sequentially on the main thread
+
+    @return two dictionaries, (test_percents, train_percents)
+        (param -> percent) where percent is between 0 and 1
     '''
     percentsDict = {}
+    trainPercentsDict = {}
     k = len(xpieces)
     dim = len(xpieces[0][0])
     for params, idx in params_k_product:
@@ -173,16 +187,21 @@ def _train(cls, xpieces, ypieces, epochs, batch_size, params_k_product):
         sys.stdout.flush()
         if params not in percentsDict:
             percentsDict[params] = 0
+            trainPercentsDict[params] = 0
         classifier = cls(dim, *params)
-        accuracy = _train_oneiter(classifier, xpieces, ypieces,
-                                  epochs, batch_size, idx)
+        accuracy, train_accuracy = _train_oneiter(
+            classifier, xpieces, ypieces,
+            epochs, batch_size, idx
+            )
         percentsDict[params] += accuracy
-        print ' ', accuracy
+        trainPercentsDict[params] += train_accuracy
+        print ' ', accuracy, '  ', train_accuracy
 
     for params in percentsDict:
         percentsDict[params] /= k
+        trainPercentsDict[params] /= k
 
-    return percentsDict
+    return (percentsDict, trainPercentsDict)
 
 def crossvalidate(cls, xdata, ydata, k, epochs, batch_size, hyperparams, names):
     '''
@@ -204,6 +223,7 @@ def _train_threaded(cls, xpieces, ypieces, epochs, batch_size,
     Performs training with multiple threads
     '''
     percentsDict = {}
+    trainPercentsDict = {}
     k = len(xpieces)
     # TODO: define this dynamically, and create a queue instead of a thread per
     #       item
@@ -215,13 +235,16 @@ def _train_threaded(cls, xpieces, ypieces, epochs, batch_size,
         ]
     for thread in threads:
         percentsDict[thread.hyperparams] = 0
+        trainPercentsDict[thread.hyperparams] = 0
         thread.start()
     for thread in threads:
         thread.join()
         percentsDict[thread.hyperparams] += thread.accuracy
+        trainPercentsDict[thread.hyperparams] += thread.train_accuracy
     for params in percentsDict:
         percentsDict[params] /= k
-    return percentsDict
+        trainPercentsDict[params] /= k
+    return (percentsDict, trainPercentsDict)
 
 def crossvalidate_threaded(cls, xdata, ydata, k, epochs, batch_size,
                            hyperparams, names):
