@@ -313,10 +313,12 @@ class MlpHiddenLayer(object):
         '''
         w_range = np.sqrt(6. / (dim_in + dim_out))
         self.w = theano.shared(
-            value=np.random.uniform(
-                low=-w_range,
-                high=w_range,
-                size=(dim_in, dim_out),
+            value=np.asarray(
+                np.random.uniform(
+                    low=-w_range,
+                    high=w_range,
+                    size=(dim_in, dim_out),
+                    ),
                 dtype=theano.config.floatX,
                 ),
             name='w',
@@ -380,26 +382,17 @@ class Mlp(Sgd):
             mlp_cost(x, y, w, b, self.C1, self.C2,
                      self.hiddenLayer.w, self.hiddenLayer.b)
             )
-        self.t = theano.shared(
-            value=np.zeros(1, dtype=np.int32),
-            name='t',
-            borrow=True,
-            )
-        r = theano.shared(
-            value=np.asarray(
-                [r],
-                dtype=theano.config.floatX,
-                ),
-            name='r',
-            borrow=True,
-            )
+        self.t = theano.shared(0, name='t')
+        r = theano.shared(r, name='r')
         super(self.__class__, self).__init__(
             my_cost,
             dim_hidden,
             dim_out,
             r,
-            self.hiddenLayer.output
+            x=self.hiddenLayer.output
             )
+        # Use a different input than what it set in the base class
+        self.x = self.hiddenLayer.x
         self.params.extend(self.hiddenLayer.params)
         dcost_dhw = T.grad(cost=self.cost, wrt=self.hiddenLayer.w)
         dcost_dhb = T.grad(cost=self.cost, wrt=self.hiddenLayer.b)
@@ -425,7 +418,7 @@ class Mlp(Sgd):
             np.asarray(xdata, dtype=theano.config.floatX),
             borrow=True
             )
-        answers = T.sgn(xdata_share.dot(self.w) + self.b).eval()
+        answers = T.sgn(self.hiddenLayer.output.dot(self.w) + self.b).eval({self.x: xdata})
         # The answers array is shaped as a (n,1) 2D array.  We want to reshape
         # to a 1D array.
         return answers.reshape((xdata_share.get_value(borrow=True).shape[0],))
@@ -490,26 +483,33 @@ def testPerceptron(name, trainExamples, testExamples, crossepochs=10,
 
     Prints out the results to the console
     '''
+    rvalues = [0.01, 0.05, 0.1, 0.5]
+    Cvalues = [1, 10, 20, 40]
+    dimvalues = [10, 20]
+
+    #learner = Perceptron
+    #learner = AveragedPerceptron
+    #learner = SVM
+    learner = lambda dim_in, dim_hidden, r, C2: Mlp(dim_in, dim_hidden, 1, r, 0, C2)
+    #hypers = list(itertools.product(rvalues, Cvalues))
+    hypers = list(itertools.product(dimvalues, rvalues, Cvalues))
+    #names = ['r', 'C']
+    names = ['hidden-dimension', 'r', 'C']
+
     featuresList = [x.features for x in trainExamples]
     labels = [x.label for x in trainExamples]
     testFeatures = [x.features for x in testExamples]
     testLabels = [x.label for x in testExamples]
-    rvalues = [0.01, 0.05, 0.1, 0.5]
-    Cvalues = [1, 10, 20, 40]
-    hypers = list(itertools.product(Cvalues, rvalues))
-    names = ['C', 'r']
     k = 5
     print 'Performing cross-validation'
     print '  k:              ', k
     print '  parameters:     ', names
-    bestHyper = crossvalidate(SVM, featuresList, labels, k, crossepochs,
+    bestHyper = crossvalidate(learner, featuresList, labels, k, crossepochs,
                               batchSize, hypers, names)
     print '  best params:    ', names, '=', bestHyper
     print
 
-    #p = Perceptron(len(featuresList[0]), *bestHyper)
-    #p = AveragedPerceptron(len(featuresList[0]), *bestHyper)
-    p = SVM(len(featuresList[0]), *bestHyper)
+    p = learner(featuresList[0], *bestHyper)
     print 'training ' + name + ' ',
     sys.stdout.flush()
     p.train(featuresList, labels, epochs, batchSize)
