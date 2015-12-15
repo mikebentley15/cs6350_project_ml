@@ -124,7 +124,7 @@ def _crossvalidate_internal(cls, xdata, ydata, k, epochs, batch_size,
     if k == len(xdata):
         crossvalType = 'leave-one-out'
     else:
-        crossvalType = '{}-fold'.format(k)
+        crossvalType = '{0}-fold'.format(k)
     print 'Running {type} cross-validation to determine good hyperparameters'\
                 .format(type=crossvalType)
     print '  Epochs:', epochs

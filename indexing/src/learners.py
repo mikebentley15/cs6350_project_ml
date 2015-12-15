@@ -245,19 +245,20 @@ class SVM(Sgd):
     Note: a bias term is already present.
     '''
 
-    def __init__(self, dim, C, r):
+    def __init__(self, dim, r, C):
         '''
         @param dim Number of dimensions in the input
         @param r   Learning rate
         @param C   First Step
         '''
-        self.C = C
+        floatX = eval('np.' + theano.config.floatX)
+        self.C = floatX(C)
+        self.r0 = floatX(r)
+        self.t = theano.shared(floatX(0),  name='t')
         my_loss = lambda x, y, w, b: svm_cost(x, y, w, b, self.C)
-        self.r0 = r
-        r = theano.shared(r, name='r')
-        self.t = theano.shared(0,  name='t')
+        r = theano.shared(self.r0, name='r')
         super(self.__class__, self).__init__(my_loss, dim, 1, r)
-        self.updates.append((self.r, self.r0 / (1 + self.r0 * self.t * C)))
+        self.updates.append((self.r, self.r0 / (1 + self.r0 * self.t * self.C)))
         self.updates.append((self.t, self.t + 1))
 
     def predict(self, xdata):
