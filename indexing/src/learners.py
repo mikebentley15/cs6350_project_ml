@@ -367,32 +367,31 @@ class MlpHiddenLayer(object):
         self.params = [self.w, self.b]
 
 
-def mlp_cost(x, y, w, b, C1, C2, w_hidden, b_hidden):
+def mlp_cost(x, y, w, b, C, w_hidden, b_hidden, logreg=None):
     '''
     @param x: input features
     @param y: correct labels of -1 or 1
     @param w: weight vector
     @param b: bias term
-    @param C1: constant in front of the L1 loss
-    @param C2: constant in front of the L2 loss
+    @param C: constant in front of the L2 loss
     @param w_hidden: hidden layer weight matrix
     @param b_hidden: hidden layer bias vector
     '''
     # TODO: replace svm_loss with some other loss
     return (
-        C1 * l1_norm(w, w_hidden)
-        + C2 * l2_norm(w, w_hidden)
-        + perceptron_loss(x, y, w, b)
+        C * l2_norm(w, w_hidden)
+        + _negative_log_likelihood(x, y, w, b, logreg)
         )
 
 
 class Mlp(Sgd):
-    def __init__(self, dim_in, dim_hidden, dim_out, r, C1, C2, x=None):
+    def __init__(self, dim_in, dim_hidden, dim_out, r, C, x=None):
         '''
         @param dim_in: number of input features
         @param dim_hidden: number of nodes in the hidden layer
         @param dim_out: number of outputs
         @param r: learning rate
+        @param C: tradeoff between regularizer and loss
         @param x: (theano.tensor.TensorType - one minibatch) symbolic variable
             for the input features.  If none, then it is assumed that this is
             the first layer and a variable will be created.
@@ -403,12 +402,11 @@ class Mlp(Sgd):
             x=x,
             activation=T.tanh,
             )
-        self.C1 = floatX(C1)
-        self.C2 = floatX(C2)
+        self.C = floatX(C)
         self.r0 = floatX(r)
         my_cost = lambda xin, y, w, b: (
-            mlp_cost(xin, y, w, b, self.C1, self.C2,
-                     self.hiddenLayer.w, self.hiddenLayer.b)
+            mlp_cost(xin, y, w, b, self.C,
+                     self.hiddenLayer.w, self.hiddenLayer.b, self)
             )
         self.t = theano.shared(floatX(0), name='t')
         r = theano.shared(self.r0, name='r')
@@ -427,7 +425,7 @@ class Mlp(Sgd):
         self.updates.extend([
             (self.hiddenLayer.w, self.hiddenLayer.w - self.r * dcost_dhw),
             (self.hiddenLayer.b, self.hiddenLayer.b - self.r * dcost_dhb),
-            (self.r, self.r0 / (1 + self.r0 * self.t * self.C2)),
+            (self.r, self.r0 / (1 + self.r0 * self.t * self.C)),
             (self.t, self.t + 1),
             ])
 
@@ -442,16 +440,13 @@ class Mlp(Sgd):
         @param xdata Feature list to classify
         @return list of labels
         '''
-        answers = T.sgn(self.hiddenLayer.output.dot(self.w) + self.b).eval({self.x: xdata})
         answers = theano.function(
             inputs=[self.x],
-            outputs=T.sgn(self.hiddenLayer.output.dot(self.w) + self.b),
+            outputs=T.argmax(self.prob, axis=1),
             allow_input_downcast=True,
             name='predict',
             )
-        # The answers array is shaped as a (n,1) 2D array.  We want to reshape
-        # to a 1D array.
-        return answers(xdata).reshape((len(xdata),))
+        return answers(xdata)
 
 def parseArgs(arguments):
     'Parse command-line arguments'
@@ -529,14 +524,14 @@ def testPerceptron(name, trainExamples, testExamples, crossepochs=10,
     #learner = SVM
     #hypers = list(itertools.product(rvalues, Cvalues))
     #names = ['r', 'C']
-    learner = LogisticRegression
+    #learner = LogisticRegression
+    #hypers = list(itertools.product([2], rvalues, Cvalues))
+    #names = ['dim-out', 'r', 'C']
     labels = [max(0, x) for x in labels]
     testLabels = [max(0, x) for x in labels]
-    hypers = list(itertools.product([2], rvalues, Cvalues))
-    names = ['dim-out', 'r', 'C']
-    #learner = lambda dim_in, dim_hidden, r, C2: Mlp(dim_in, dim_hidden, 1, r, 0, C2)
-    #hypers = list(itertools.product(dimvalues, rvalues, Cvalues))
-    #names = ['hidden-dimension', 'r', 'C']
+    learner = lambda dim_in, dim_hidden, r, C: Mlp(dim_in, dim_hidden, 2, r, C)
+    hypers = list(itertools.product(dimvalues, rvalues, Cvalues))
+    names = ['hidden-dimension', 'r', 'C']
 
     k = 5
     print 'Performing cross-validation'
