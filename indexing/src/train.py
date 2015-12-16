@@ -80,6 +80,11 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
     with open(train, 'r') as trainfile:
         xdata, ydata = pickle.load(trainfile)
     xdata = _preprocess(xdata)
+    # Split into verify set and data set
+    xverify = xdata[:len(xdata)/5]
+    yverify = ydata[:len(xdata)/5]
+    xdata = xdata[len(xdata)/5:]
+    ydata = ydata[len(xdata)/5:]
     print 'done'
     kb_used = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     print '  elapsed time:       ', time.clock() - start
@@ -139,7 +144,7 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
     sys.stdout.flush()
     start = time.clock()
     classifier = algorithm(xdata.shape[1], *params)
-    classifier.train(xdata, ydata, epochs, batch_size)
+    classifier.train(xdata, ydata, epochs, batch_size, xverify=xverify, yverify=yverify)
     print ' done'
     predictions = classifier.predict(xdata)
     print '  elapsed time:       ', time.clock() - start
