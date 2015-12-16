@@ -16,6 +16,7 @@ import sys
 import time
 
 import numpy as np
+import theano
 
 def parseArgs(arguments):
     'Parse command-line arguments'
@@ -55,6 +56,7 @@ def _preprocess(xdata):
     Performs necessary preprocessing to improve learning and to shape the data
     how it needs to be.
     '''
+    floatX = eval('np.' + theano.config.floatX)
     xdata = floatX(xdata) / xdata.max() # Scale it between 0 and 1
     xdata = 1 - xdata # Invert it to have majority small values
     xdata = np.reshape(xdata, (xdata.shape[0], xdata.shape[1] * xdata.shape[2]))
@@ -109,6 +111,9 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
         ydata[:] = (ydata + 1) / 2
     start = time.clock()
     print 'Doing {k}-cross validation sequentially'.format(k=k)
+    print '  params:             ', hypernames
+    for i in xrange(len(hypernames)):
+        print '  {0} values:    '.format(hypernames[i]), sorted(set([x[i] for x in hyperparams]))
     params = crossvalidate(algorithm, xdata, ydata, k, cross_epochs, batch_size,
                            hyperparams, hypernames)
     print '  elapsed time:       ', time.clock() - start
