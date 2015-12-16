@@ -212,13 +212,18 @@ class AveragedPerceptron(Sgd):
             ))
 
 
-    def train(self, xdata, ydata, xverify, yverify, epochs, batchSize):
+    def train(self, xdata, ydata, epochs, batchSize, xverify=None, yverify=None):
         '''
         Calls the base class train() method and then does post-processing
         '''
-        super(self.__class__, self).train(xdata, ydata, epochs, batchSize)
-        self.w_avg = self.w_avg / len(xdata)
-        self.b_avg = self.b_avg / len(xdata)
+        w_avg_before = self.w_avg.get_value(borrow=False)
+        b_avg_before = self.b_avg.get_value(borrow=False)
+        super(self.__class__, self).train(xdata, ydata, epochs, batchSize,
+            xverify=xverify,
+            yverify=yverify,
+            )
+        self.w_avg = w_avg_before + (self.w_avg - w_avg_before) / len(xdata)
+        self.b_avg = b_avg_before + (self.b_avg - b_avg_before) / len(xdata)
 
     def predict(self, xdata):
         '''
@@ -483,6 +488,10 @@ def parseArgs(arguments):
         help='''
         Directory where to find the data from the ML class (data0 and data1).
         ''')
+    parser.add_argument('-c', '--classifier', default='SVM', help='''
+        Choices are Perceptron, AveragedPerceptron, SVM, LogisticRegression,
+        and MLP.
+        ''')
     return parser.parse_args(args=arguments)
 
 def main(arguments):
@@ -502,8 +511,10 @@ def main(arguments):
         # Name         training path       testing path
         #('sanity   ', 'sanityCheck-train.dat', 'sanityCheck-train.dat'),
         #('train0.10', 'data0/train0.10', 'data0/test0.10'),
-        ('train0.20', 'data0/train0.20', 'data0/test0.20'),
-        ('train1.10', 'data1/train1.10', 'data1/test1.10'),
+        #('train0.20', 'data0/train0.20', 'data0/test0.20'),
+        #('train1.10', 'data1/train1.10', 'data1/test1.10'),
+        ('astro-original', 'astro/original/train', 'astro/original/test'),
+        ('astro-scaled', 'astro/scaled/train', 'astro/scaled/test'),
         ]
 
     for name, trainingPath, testingPath in sets:
@@ -513,14 +524,15 @@ def main(arguments):
         testing = TrainingExample.fromSvm(
             os.path.join(args.base_dir, testingPath)
             )
-        testPerceptron(name, training, testing,
-                       crossepochs=10,
-                       epochs=epochs,
-                       batchSize=batchSize)
+        testLearner(name, training, testing,
+                    crossepochs=10,
+                    epochs=epochs,
+                    batchSize=batchSize,
+                    learnerName=args.classifier)
     print
 
-def testPerceptron(name, trainExamples, testExamples, crossepochs=10,
-                   epochs=10, batchSize=1):
+def testLearner(name, trainExamples, testExamples, crossepochs=10,
+                epochs=10, batchSize=1, learnerName='SVM'):
     '''
     Trains an averaged Perceptron classifier from the training examples and
     then calculates the accuracy of the generated classifier on the test
@@ -537,24 +549,36 @@ def testPerceptron(name, trainExamples, testExamples, crossepochs=10,
     Cvalues = [0.001, 0.005, 0.01, 0.05]
     dimvalues = [10, 20]
 
-    #learner = Perceptron
-    #learner = AveragedPerceptron
-    #hypers = [(x,) for x in rvalues]
-    #names = ['r']
-    #learner = SVM
-    #hypers = list(itertools.product(rvalues, Cvalues))
-    #names = ['r', 'C']
-    #learner = LogisticRegression
-    labels = (labels + 1) / 2
-    testLabels = (testLabels + 1) / 2
-    #hypers = list(itertools.product([2], rvalues, Cvalues))
-    #names = ['dim-out', 'r', 'C']
-    learner = lambda dim_in, dim_hidden, r, C: Mlp(dim_in, dim_hidden, 2, r, C)
-    hypers = list(itertools.product(dimvalues, rvalues, Cvalues))
-    names = ['hidden-dimension', 'r', 'C']
+    logreglearner = lambda dim_in, r, C: LogisticRegression(dim_in, 2, r, C)
+    mlplearner = lambda dim_in, dim_hidden, r, C: Mlp(dim_in, dim_hidden, 2, r, C)
+    learnerMap = {
+        'Perceptron': (Perceptron, [(x,) for x in rvalues], ['r']),
+        'AveragedPerceptron': (AveragedPerceptron, [(x,) for x in rvalues], ['r']),
+        'SVM': (SVM, list(itertools.product(rvalues, Cvalues)), ['r', 'C']),
+        'LogisticRegression': (
+            logreglearner,
+            list(itertools.product(rvalues, Cvalues)),
+            ['r', 'C']
+            ),
+        'MLP': (
+            mlplearner,
+            list(itertools.product(dimvalues, rvalues, Cvalues)),
+            ['hidden-dimension', 'r', 'C']
+            ),
+        }
+    learner, hypers, names = learnerMap[learnerName]
+    
+    logisticLearners = ('LogisticRegression', 'MLP')
+    if learnerName in logisticLearners:
+        labels -= labels.min()
+        labels /= labels.max()
+        testLabels -= testLabels.min()
+        testLabels /= testLabels.max()
 
     k = 5
     print 'Performing cross-validation'
+    print '  dataset:        ', name
+    print '  learner:        ', learnerName
     print '  k:              ', k
     print '  parameters:     ', names
     bestHyper = crossvalidate(learner, featuresList, labels, k, crossepochs,

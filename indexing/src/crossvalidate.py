@@ -125,6 +125,10 @@ def _crossvalidate_internal(cls, xdata, ydata, k, epochs, batch_size,
         - params_k_product: equal to
              itertools.product(hyperparams, range(k))
     '''
+    # Shuffle and copy the data before cross-validation
+    perm = np.random.permutation(len(xdata))
+    xdata[:] = xdata[perm].copy()
+    ydata[:] = ydata[perm].copy()
     test_percents = np.zeros(len(hyperparams))
     train_percents = np.zeros(len(hyperparams))
     if k == len(xdata):

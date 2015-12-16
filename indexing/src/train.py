@@ -114,6 +114,8 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
     algorithm, hyperparams, hypernames = classifierMap[classifierName]
     if classifierName in ('LogisticRegression', 'MLP'):
         ydata[:] = (ydata + 1) / 2
+    print set(ydata)
+    sys.exit()
     start = time.clock()
     print 'Doing {k}-cross validation sequentially'.format(k=k)
     print '  params:             ', hypernames
