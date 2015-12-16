@@ -28,7 +28,7 @@ class Sgd(object):
                     be a function of x, y, w, and b. (python function)
                     Example:
                     def cost(x, y, w, b):
-                        "Returns a logistic loss cost function"
+                        \"Returns a logistic loss cost function\"
                         prob = T.nnet.softmax(T.dot(x, w) + b)
                         return -T.mean(T.log(prob)[T.arange(y.shape[0]), y])
         @param dim_in
@@ -72,12 +72,14 @@ class Sgd(object):
             ]
         self.output = T.sgn(self.x.dot(self.w) + self.b)
 
-    def train(self, xdata, ydata, epochs, batchSize):
+    def train(self, xdata, ydata, epochs, batchSize, xverify=None, yverify=None):
         '''
         @param xdata Data to use for x (2D list or np.array)
         @param ydata Data to use for y (1D list or np.array)
         @param epochs Number of epochs to perform
         @param batchSize Number of samples to send in each iteration of SGD
+        @param xverify Verify data set used to exit early from training (optional)
+        @param yverify Verify data set used to exit early from training (optional)
         '''
         xdata = np.asarray(xdata, dtype=theano.config.floatX).copy() # Make copies
         ydata = np.asarray(ydata, dtype=np.int32).copy()
@@ -98,6 +100,10 @@ class Sgd(object):
                 self.y: ydata_share[index*batchSize : (index+1)*batchSize],
                 }
             )
+        max_validation_accuracy = 0
+        best_vars = [x.get_value(borrow=False) for x in self.params]
+        early_exit_threshold = 0.01 # Percent above minimum validation accuracy
+        validation_check = min(5, epochs / 10) # how often to check
 
         for epoch in xrange(epochs):
             # Permute the data arrays
@@ -111,6 +117,20 @@ class Sgd(object):
             if epoch % max(1, (epochs / 10)) == 0:
                 sys.stdout.write('.')
                 sys.stdout.flush()
+            if xverify is not None and yverify is not None and epoch % validation_check == 0:
+                predictions = self.predict(xverify)
+                accuracy = np.sum(yverify == predictions) / float(len(yverify))
+                print
+                print '  epoch {0}, verfication accuracy {1:.4%}'.format(epoch, accuracy) 
+                if accuracy > max_validation_accuracy:
+                    max_validation_accuracy = accuracy
+                    best_vars = [x.get_value(borrow=False) for x in self.params]
+                elif max_validation_accuracy - accuracy >= early_exit_threshold:
+                    for i in range(len(self.params)):
+                        self.params[i].get_value(borrow=True)[:] = best_vars[i]
+                    print 'Early exit achieved at epoch', epoch
+                    print '  Using earlier weight with smaller validation error', max_validation_accuracy
+                    break
 
 def perceptron_loss(x, y, w, b):
     '''
@@ -192,7 +212,7 @@ class AveragedPerceptron(Sgd):
             ))
 
 
-    def train(self, xdata, ydata, epochs, batchSize):
+    def train(self, xdata, ydata, xverify, yverify, epochs, batchSize):
         '''
         Calls the base class train() method and then does post-processing
         '''
@@ -260,7 +280,7 @@ class SVM(Sgd):
         r = theano.shared(self.r0, name='r')
         super(self.__class__, self).__init__(my_loss, dim, 1, r)
         self.updates.append((self.r, self.r0 / (1 + self.r0 * self.t * self.C)))
-        self.updates.append((self.t, self.t + 1))
+        self.updates.append((self.t, self.t + self.x.shape[0]))
 
     def predict(self, xdata):
         '''
@@ -311,7 +331,7 @@ class LogisticRegression(Sgd):
         my_cost = lambda x, y, w, b: _logreg_cost(x, y, w, b, self.C, self)
         super(self.__class__, self).__init__(my_cost, dim_in, dim_out, r, x)
         self.updates.append((self.r, self.r0 / (1 + self.r0 * self.t * self.C)))
-        self.updates.append((self.t, self.t + 1))
+        self.updates.append((self.t, self.t + self.x.shape[0]))
 
     def predict(self, xdata):
         answers = theano.function(
@@ -426,7 +446,7 @@ class Mlp(Sgd):
             (self.hiddenLayer.w, self.hiddenLayer.w - self.r * dcost_dhw),
             (self.hiddenLayer.b, self.hiddenLayer.b - self.r * dcost_dhb),
             (self.r, self.r0 / (1 + self.r0 * self.t * self.C)),
-            (self.t, self.t + 1),
+            (self.t, self.t + self.x.shape[0]),
             ])
 
     def predict(self, xdata):
@@ -482,7 +502,7 @@ def main(arguments):
         # Name         training path       testing path
         #('sanity   ', 'sanityCheck-train.dat', 'sanityCheck-train.dat'),
         #('train0.10', 'data0/train0.10', 'data0/test0.10'),
-        #('train0.20', 'data0/train0.20', 'data0/test0.20'),
+        ('train0.20', 'data0/train0.20', 'data0/test0.20'),
         ('train1.10', 'data1/train1.10', 'data1/test1.10'),
         ]
 
