@@ -50,6 +50,15 @@ def main(arguments):
     finally:
         sys.stdout = origstdout
 
+def _preprocess(xdata):
+    '''
+    Performs necessary preprocessing to improve learning and to shape the data
+    how it needs to be.
+    '''
+    xdata = floatX(xdata) / xdata.max() # Scale it between 0 and 1
+    xdata = 1 - xdata # Invert it to have majority small values
+    xdata = np.reshape(xdata, (xdata.shape[0], xdata.shape[1] * xdata.shape[2]))
+    return xdata
 
 def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName):
     '''
@@ -68,7 +77,7 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
     start = time.clock()
     with open(train, 'r') as trainfile:
         xdata, ydata = pickle.load(trainfile)
-    xdata = np.reshape(xdata, (xdata.shape[0], xdata.shape[1] * xdata.shape[2]))
+    xdata = _preprocess(xdata)
     print 'done'
     kb_used = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     print '  elapsed time:       ', time.clock() - start
@@ -144,7 +153,7 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
     start = time.clock()
     with open(test, 'r') as testfile:
         testx, testy = pickle.load(testfile)
-    testx = np.reshape(testx, (testx.shape[0], testx.shape[1] * testx.shape[2]))
+    testx = _preprocess(testx)
     if classifierName in ('LogisticRegression', 'MLP'):
         testy[:] = (testy + 1 / 2)
     print ' done'
