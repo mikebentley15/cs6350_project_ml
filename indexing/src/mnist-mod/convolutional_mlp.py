@@ -427,12 +427,10 @@ def main():
     for i in xrange(len(names)):
         print '  {0:3s} values:         '.format(names[i]), sorted(set([x[i] for x in hypers]))
 
-    #k = 3
-    #cross_epochs = 2
-    #print '... cross-validating'
-    #best = crossvalidate(trainerWrapper, xdata_ref, ydata_ref, k, cross_epochs, batch_size, hypers, names)
-    print 'Skipping cross-validation, using best from last run'
-    best = [0.050, 20, 50]
+    k = 3
+    cross_epochs = 5
+    print '... cross-validating'
+    best = crossvalidate(trainerWrapper, xdata_ref, ydata_ref, k, cross_epochs, batch_size, hypers, names)
     print 'Best hyper parameters:  ', names, ' = ', best
 
     evaluate_lenet5(datasets, epochs, best[0], best[1:], batch_size)
