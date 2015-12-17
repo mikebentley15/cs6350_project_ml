@@ -325,7 +325,7 @@ def _negative_log_likelihood(x, y, w, b, logreg=None):
     prob = T.nnet.softmax(x.dot(w) + b)
     if logreg is not None:
         logreg.prob = prob
-    return -T.mean(T.log(prob)[T.arange(y.shape[0]), y])
+    return -T.log(prob)[T.arange(y.shape[0]), y].sum()
 
 def _logreg_cost(x, y, w, b, C, logreg=None):
     return (
@@ -345,14 +345,20 @@ class LogisticRegression(Sgd):
         self.updates.append((self.r, self.r0 / (1 + self.r0 * self.t * self.C)))
         self.updates.append((self.t, self.t + self.x.shape[0]))
 
-    def predict(self, xdata):
-        answers = theano.function(
+        if dim_out > 1:
+            predictor_function = T.argmax(self.prob, axis=1)
+        else:
+            predictor_function = (T.sgn(self.x.dot(self.w) + self.b) + 1) / 2,
+
+        self._predictor = theano.function(
             inputs=[self.x],
-            outputs=T.argmax(self.prob, axis=1),
+            outputs=predictor_function,
             allow_input_downcast=True,
-            name='predict',
+            name='predictor',
             )
-        return answers(xdata)
+
+    def predict(self, xdata):
+        return self._predictor(xdata)
 
 class MlpHiddenLayer(object):
     def __init__(self, dim_in, dim_out, x=None, activation=T.tanh):
@@ -372,6 +378,8 @@ class MlpHiddenLayer(object):
             in the hidden layer
         '''
         w_range = floatX(np.sqrt(6. / (dim_in + dim_out)))
+        if activation == T.nnet.sigmoid:
+            w_range *= 4
         self.w = theano.shared(
             value=np.asarray(
                 np.random.uniform(
@@ -415,7 +423,7 @@ def mlp_cost(x, y, w, b, C, w_hidden, b_hidden, logreg=None):
         )
 
 class Mlp(Sgd):
-    def __init__(self, dim_in, dim_hidden, dim_out, r, C, x=None):
+    def __init__(self, dim_in, dim_hidden, dim_out, r, C, x=None, activation=T.tanh):
         '''
         @param dim_in: number of input features
         @param dim_hidden: number of nodes in the hidden layer
@@ -425,12 +433,13 @@ class Mlp(Sgd):
         @param x: (theano.tensor.TensorType - one minibatch) symbolic variable
             for the input features.  If none, then it is assumed that this is
             the first layer and a variable will be created.
+        @param activation: activation function to use
         '''
         self.hiddenLayer = MlpHiddenLayer(
             dim_in,
             dim_hidden,
             x=x,
-            activation=T.tanh,
+            activation=activation,
             )
         self.C = floatX(C)
         self.r0 = floatX(r)
