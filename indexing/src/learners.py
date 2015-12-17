@@ -8,6 +8,7 @@ from crossvalidate import crossvalidate
 import numpy as np
 import theano
 import theano.tensor as T
+from theano.tensor.signal import downsample
 
 import argparse
 import itertools
@@ -28,7 +29,7 @@ class Sgd(object):
                     be a function of x, y, w, and b. (python function)
                     Example:
                     def cost(x, y, w, b):
-                        \"Returns a logistic loss cost function\"
+                        # Returns a logistic loss cost function
                         prob = T.nnet.softmax(T.dot(x, w) + b)
                         return -T.mean(T.log(prob)[T.arange(y.shape[0]), y])
         @param dim_in
@@ -117,10 +118,13 @@ class Sgd(object):
             if epoch % max(1, (epochs / 10)) == 0:
                 sys.stdout.write('.')
                 sys.stdout.flush()
+            print 'cost: ', self.cost.eval({self.x: xdata, self.y: ydata})
             if xverify is not None and yverify is not None:
                 predictions = self.predict(xverify)
                 accuracy = np.sum(yverify == predictions) / float(len(yverify))
-                print '  epoch {0}, verfication accuracy {1:.4%}'.format(epoch+1, accuracy) 
+                print '  epoch {0}, verfication accuracy {1:.4%}, cost: {2}'.format(
+                    epoch+1, accuracy, self.cost.eval({self.x: xdata, self.y: ydata})
+                    )
             if xverify is not None and yverify is not None and (epoch+1) % validation_check == 0:
                 #predictions = self.predict(xverify)
                 #accuracy = np.sum(yverify == predictions) / float(len(yverify))
@@ -163,7 +167,7 @@ class Perceptron(Sgd):
         @param dim Number of dimensions in the input
         @param r   Learning rate
         '''
-        super(self.__class__, self).__init__(perceptron_loss, dim, 1, r)
+        super(Perceptron, self).__init__(perceptron_loss, dim, 1, r)
 
     def predict(self, xdata):
         '''
@@ -193,7 +197,7 @@ class AveragedPerceptron(Sgd):
         @param dim Number of dimensions in the input
         @param r   Learning rate
         '''
-        super(self.__class__, self).__init__(perceptron_loss, dim, 1, r)
+        super(AveragedPerceptron, self).__init__(perceptron_loss, dim, 1, r)
 
         self.w_avg = theano.shared(
             value=np.zeros(
@@ -225,7 +229,7 @@ class AveragedPerceptron(Sgd):
         '''
         w_avg_before = self.w_avg.get_value(borrow=False)
         b_avg_before = self.b_avg.get_value(borrow=False)
-        super(self.__class__, self).train(xdata, ydata, epochs, batchSize,
+        super(AveragedPerceptron, self).train(xdata, ydata, epochs, batchSize,
             xverify=xverify,
             yverify=yverify,
             )
@@ -290,7 +294,7 @@ class SVM(Sgd):
         self.t = theano.shared(floatX(0),  name='t')
         my_loss = lambda x, y, w, b: svm_cost(x, y, w, b, self.C)
         r = theano.shared(self.r0, name='r')
-        super(self.__class__, self).__init__(my_loss, dim, 1, r)
+        super(SVM, self).__init__(my_loss, dim, 1, r)
         self.updates.append((self.r, self.r0 / (1 + self.r0 * self.t * self.C)))
         self.updates.append((self.t, self.t + self.x.shape[0]))
 
@@ -322,10 +326,16 @@ def _negative_log_likelihood(x, y, w, b, logreg=None):
     @param b: bias vector
     @param logreg: (LogisticRegression object) to save prob
     '''
-    prob = T.nnet.softmax(x.dot(w) + b)
+    # TODO: Fix this.  It runs, but doesn't work for out_dim == 1
+    if w.get_value(borrow=True).shape[-1] == 1:
+        prob = T.nnet.sigmoid(y*(x.dot(w) + b).transpose())
+        nll = -T.log(prob).sum()
+    else:
+        prob = T.nnet.softmax(x.dot(w) + b)
+        nll = -T.log(prob)[T.arange(y.shape[0]), y].sum()
     if logreg is not None:
         logreg.prob = prob
-    return -T.log(prob)[T.arange(y.shape[0]), y].sum()
+    return nll
 
 def _logreg_cost(x, y, w, b, C, logreg=None):
     return (
@@ -341,14 +351,14 @@ class LogisticRegression(Sgd):
         self.prob = None
         r = theano.shared(self.r0, name='r')
         my_cost = lambda x, y, w, b: _logreg_cost(x, y, w, b, self.C, self)
-        super(self.__class__, self).__init__(my_cost, dim_in, dim_out, r, x)
+        super(LogisticRegression, self).__init__(my_cost, dim_in, dim_out, r, x)
         self.updates.append((self.r, self.r0 / (1 + self.r0 * self.t * self.C)))
         self.updates.append((self.t, self.t + self.x.shape[0]))
 
         if dim_out > 1:
             predictor_function = T.argmax(self.prob, axis=1)
         else:
-            predictor_function = (T.sgn(self.x.dot(self.w) + self.b) + 1) / 2,
+            predictor_function = (T.flatten(T.sgn(self.x.dot(self.w) + self.b)) + 1) / 2
 
         self._predictor = theano.function(
             inputs=[self.x],
@@ -416,7 +426,6 @@ def mlp_cost(x, y, w, b, C, w_hidden, b_hidden, logreg=None):
     @param w_hidden: hidden layer weight matrix
     @param b_hidden: hidden layer bias vector
     '''
-    # TODO: replace svm_loss with some other loss
     return (
         C * l2_norm(w, w_hidden)
         + _negative_log_likelihood(x, y, w, b, logreg)
@@ -449,7 +458,7 @@ class Mlp(Sgd):
             )
         self.t = theano.shared(floatX(0), name='t')
         r = theano.shared(self.r0, name='r')
-        super(self.__class__, self).__init__(
+        super(Mlp, self).__init__(
             my_cost,
             dim_hidden,
             dim_out,
@@ -487,14 +496,14 @@ class Mlp(Sgd):
             )
         return answers(xdata)
 
-class ConvLayer(object):
+class ConvPoolLayer(object):
     '''
-    This layer performs convolutions on input images to create output images.
-    This is a linear operation, no non-linearity is introduced in this layer.
+    This layer performs convolutions and pooling on input images to create
+    output images.
     '''
 
     def __init__(self, in_shape, in_im_count, out_im_count, filter_shape,
-                 x=None):
+                 pool_shape, batch_size, x=None, activation=T.tanh):
         '''
         @param in_shape: shape of each input image
         @param in_im_count: how many images incoming are to be convolved
@@ -503,54 +512,134 @@ class ConvLayer(object):
             each one generating a different output image
         @param filter_shape: shape of the convolution filter.  This should be
             odd integer shapes.
+        @param pool_shape: shape of the pooling filter.  This shape should
+            evenly divide the in_shape.
         @param x: (theano.tensor.dtensor4) input images to convolve around.
             The dimensions of this input array is
-               ('x', in_im_count, in_shape[0], in_shape[1])
-            where 'x' represents a broadcastable dimension (i.e. for mini-batch
-            gradient descent).  If this is None, then this layer is considered
-            as the first layer and the layer will create an x variable for you.
+               (batch_size, in_im_count, in_shape[0], in_shape[1])
+            If this is None, then this layer is considered as the first layer
+            and the layer will create an x variable for you.
+        @param activation: activation function to use after pooling.
         '''
+        # TODO: Something is broken here.  Exception raised in training
         self.in_shape = in_shape
         self.in_im_count = in_im_count
         self.out_im_count = out_im_count
         self.filter_shape = filter_shape
-        self.out_shape = (
-            in_shape[0] - (filter_shape[1] - 1)/2,
-            in_shape[1] - (filter_shape[1] - 1)/2,
+        mid_shape = (
+            in_shape[0] - filter_shape[0] + 1,
+            in_shape[1] - filter_shape[1] + 1,
             )
-        pass
+        self.out_shape = (
+            mid_shape[0] / pool_shape[0],
+            mid_shape[1] / pool_shape[1],
+            )
 
-class PoolLayer(object):
+        if x is None:
+            self.x = T.matrix('x')
+            self.x = self.x.reshape((batch_size, in_im_count, in_shape[0], in_shape[1]))
+        else:
+            self.x = x
+
+        fan_in = in_im_count * np.prod(filter_shape)
+        fan_out = out_im_count * np.prod(filter_shape) / np.prod(pool_shape)
+        w_range = np.sqrt(6.0 / (fan_in + fan_out))
+        if activation == T.nnet.sigmoid:
+            w_range *= 4
+        self.w = theano.shared(
+            value=np.asarray(
+                np.random.uniform(
+                    low=-w_range,
+                    high=w_range,
+                    size=(out_im_count, in_im_count, filter_shape[0], filter_shape[1]),
+                    ),
+                dtype=theano.config.floatX
+                ),
+            name='w',
+            borrow=True
+            )
+        self.b = theano.shared(
+            value=np.zeros((out_im_count,), dtype=theano.config.floatX),
+            name='b',
+            borrow=True
+            )
+
+        conv_out = T.nnet.conv.conv2d(
+            input=self.x,
+            filters=self.w,
+            image_shape=(None, in_im_count, in_shape[0], in_shape[1]),
+            filter_shape=(out_im_count, in_im_count, filter_shape[0], filter_shape[1]),
+            )
+
+        pool_out = downsample.max_pool_2d(
+            input=conv_out,
+            ds=pool_shape,
+            ignore_border=True
+            )
+
+        self.activation = activation
+        self.output = activation(pool_out + self.b.dimshuffle('x', 0, 'x', 'x'))
+
+        self.params = [self.w, self.b]
+
+class ConvNet(Mlp):
     '''
-    This layer performs pooling on input images to create output images.  This
-    is generally a non-linear operation, but you can specify any pooling you
-    want (such as mean or top-left).
+    Creates a potentially multi-layered convolutional neural network with an
+    MLP at the end of the chain.
     '''
 
-    def __init__(self, in_shape, in_im_count, pool_shape, x=None, pool_func=T.mean):
+    def __init__(self, in_shape, out_im_counts, filter_shapes, pool_shapes,
+                 batch_size, dim_hidden, dim_out, r, C, x=None,
+                 activation=T.tanh):
         '''
         @param in_shape: shape of each input image
-        @param in_im_count: how many images to pool over
-        @param pool_shape: shape of the pooling filter.  This shape should
-            evenly divide the in_shape.
-        @param x: (theano.tensor.dtensor4) input image to pool from.  The
-            dimension of this input array is
-                ('x', in_im_count, in_shape[0], in_shape[1])
-            where 'x' represents a broadcastable dimension (i.e. for min-batch
+        @param out_im_counts: tuple of number of output images at each conv layer
+        @param filter_shapes: tuple of tuples, filter shape at each conv layer
+        @param pool_shapes: tuple of tuples, pool shape at each conv layer
+        @param batch_size: size of batches
+        @param x: (theano.tensor.dtensor4) input images to convolve around.
+            The dimensions of this input array is
+               ('x', in_im_count, in_shape[0], in_shape[1])
+            where 'x' represents a` broadcastable dimension (i.e. for mini-batch
             gradient descent).  If this is None, then this layer is considered
             as the first layer and the layer will create an x variable for you.
-        @param pool_func: function to use when pooling
+        @param activation: activation function to use in the whole network
         '''
-        self.in_shape = in_shape
-        self.in_im_count = in_im_count
-        self.pool_shape = pool_shape
-        self.pool_func = pool_func
-        self.out_im_count = in_im_count
-        self.out_shape = (
-            in_shape[0] / pool_shape[0],
-            in_shape[1] / pool_shape[1],
+        conv_layers = [
+            ConvPoolLayer(in_shape, 1, out_im_counts[0], filter_shapes[0],
+                          pool_shapes[0], batch_size, x=x,
+                          activation=activation)
+            ]
+        for i in range(1, len(out_im_counts)):
+            prev_layer = conv_layers[i-1]
+            conv_layers.append(ConvPoolLayer(
+                prev_layer.out_shape,
+                prev_layer.out_im_count,
+                out_im_counts[i],
+                filter_shapes[i],
+                pool_shapes[i],
+                batch_size,
+                x=prev_layer.output,
+                activation=activation
+                ))
+
+        mlp_input = conv_layers[-1].output.flatten(1)
+        super(ConvNet, self).__init__(
+            np.prod(conv_layers[-1].out_shape),
+            dim_hidden,
+            dim_out,
+            r,
+            C,
+            x=mlp_input,
+            activation=activation
             )
-        pass
+        self.x = conv_layers[0].x  # Reset x to first input
+
+        self.params.extend([x for layer in conv_layers for x in layer.params])
+        self.updates.extend([
+            (param, param - self.r * T.grad(self.cost, wrt=param))
+            for layer in conv_layers for param in layer.params
+            ])
 
 def parseArgs(arguments):
     'Parse command-line arguments'

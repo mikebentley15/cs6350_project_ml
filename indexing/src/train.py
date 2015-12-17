@@ -3,7 +3,7 @@ Script for training on the LDS data
 '''
 
 #import imagefuncs
-from learners import Perceptron, AveragedPerceptron, SVM, Mlp, LogisticRegression
+from learners import Perceptron, AveragedPerceptron, SVM, Mlp, LogisticRegression, ConvNet
 from outdup import OutDuplicator
 from crossvalidate import crossvalidate
 
@@ -32,7 +32,7 @@ def parseArgs(arguments):
     parser.add_argument('-l', '--log', default='run.log', help='Where to duplicate stdout')
     parser.add_argument('-c', '--classifier', default='SVM', help='''
         Which classifier to train.  The choices are "SVM", "Perceptron",
-        "AveragedPerceptron", "LogisticRegression", and "MLP".
+        "AveragedPerceptron", "LogisticRegression", "MLP", and "ConvNet".
         ''')
     parser.add_argument('--crossval-epochs', type=int, default=10)
     return parser.parse_args(args=arguments)
@@ -51,7 +51,7 @@ def main(arguments):
     finally:
         sys.stdout = origstdout
 
-def _preprocess(xdata):
+def _preprocess(xdata, reshape=True):
     '''
     Performs necessary preprocessing to improve learning and to shape the data
     how it needs to be.
@@ -59,6 +59,8 @@ def _preprocess(xdata):
     floatX = eval('np.' + theano.config.floatX)
     xdata = floatX(xdata) / xdata.max() # Scale it between 0 and 1
     xdata = 1 - xdata # Invert it to have majority small values
+    #if reshape:
+    #    xdata = np.reshape(xdata, (xdata.shape[0], xdata.shape[1] * xdata.shape[2]))
     xdata = np.reshape(xdata, (xdata.shape[0], xdata.shape[1] * xdata.shape[2]))
     return xdata
 
@@ -79,7 +81,7 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
     start = time.clock()
     with open(train, 'r') as trainfile:
         xdata, ydata = pickle.load(trainfile)
-    xdata = _preprocess(xdata)
+    xdata = _preprocess(xdata, reshape=(classifierName != 'ConvNet'))
     # Split into verify set and data set
     xlen = len(xdata)
     xverify = xdata[:xlen/5]
@@ -99,9 +101,30 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
     rValues = [0.0001, 0.001, 0.01, 0.1, 0.5]
     CValues = [0.0001, 0.001, 0.01, 0.1]
     hiddenDims = [1, 20, 40, 80]
+    out_im1_amounts = [10, 20]
+    out_im2_amounts = [20, 50]
+
+    rValues = [0.05]
+    CValues = [0.01]
+    hiddenDims = [20]
+    out_im1_amounts = [10]
+    out_im2_amounts = [20]
 
     mlpLearner = lambda dim_in, dim_hidden, r, C: \
         Mlp(dim_in, dim_hidden, 2, r, C)
+    im_shape = (40, 68)
+    convnetLearner = lambda dim_in, out_im1, out_im2, dim_hidden, r, C: \
+        ConvNet(
+            im_shape,
+            (out_im1, out_im2),
+            ((5, 5), (5, 5)),
+            ((2, 2), (2, 2)),
+            batch_size,
+            dim_hidden,
+            2,
+            r,
+            C,
+            )
     classifierMap = {
         'MLP': (
             mlpLearner,
@@ -120,10 +143,18 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
             list(itertools.product([2], rValues, CValues)),
             ['dim_out', 'r', 'C']
             ),
+        'ConvNet': (
+            convnetLearner,
+            list(itertools.product(out_im1_amounts, out_im2_amounts, hiddenDims, rValues, CValues)),
+            ['kernel_1', 'kernel_2', 'hidden-dims', 'r', 'C']
+            ),
         }
     algorithm, hyperparams, hypernames = classifierMap[classifierName]
     if classifierName in ('LogisticRegression', 'MLP'):
-        ydata[:] = (ydata + 1) / 2
+        ydata -= ydata.min()
+        ydata /= ydata.max()
+        yverify -= yverify.min()
+        yverify /= yverify.max()
     start = time.clock()
     print 'Doing {k}-cross validation sequentially'.format(k=k)
     print '  params:             ', hypernames
@@ -173,9 +204,10 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
     start = time.clock()
     with open(test, 'r') as testfile:
         testx, testy = pickle.load(testfile)
-    testx = _preprocess(testx)
+    testx = _preprocess(testx, reshape=(classifierName != 'ConvNet'))
     if classifierName in ('LogisticRegression', 'MLP'):
-        testy[:] = (testy + 1 / 2)
+        testy -= testy.min()
+        testy /= testy.max()
     print ' done'
     kb_used = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     print '  elapsed time:       ', time.clock() - start
