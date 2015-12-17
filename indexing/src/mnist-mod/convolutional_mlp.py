@@ -476,7 +476,8 @@ class Trainer(object):
             for param_i, grad_i in zip(self.params, grads)
         ]
 
-    def train(self, train_set_x, train_set_y, epochs, batch_size, valid_set_x=None, valid_set_y=None):
+    def train(self, train_set_x, train_set_y, epochs, batch_size,
+              valid_set_x=None, valid_set_y=None, quiet=True):
         assert self.batch_size == batch_size
 
         # compute number of minibatches for training, validation and testing
@@ -520,7 +521,8 @@ class Trainer(object):
         ###############
         # TRAIN MODEL #
         ###############
-        #print '... training'
+        if not quiet:
+            print '... training'
         # early-stopping parameters
         patience = 10000  # look as this many examples regardless
         patience_increase = 2  # wait this much longer when a new best is
@@ -560,9 +562,10 @@ class Trainer(object):
                     validation_losses = [validate_model(i) for i
                                          in xrange(n_valid_batches)]
                     this_validation_loss = numpy.mean(validation_losses)
-                    print('epoch %i, minibatch %i/%i, validation error %f %%' %
-                          (epoch, minibatch_index + 1, n_train_batches,
-                           this_validation_loss * 100.))
+                    if not quiet:
+                        print('epoch %i, minibatch %i/%i, validation error %f %%' %
+                              (epoch, minibatch_index + 1, n_train_batches,
+                               this_validation_loss * 100.))
 
                     # if we got the best validation score until now
                     if this_validation_loss < best_validation_loss:
@@ -581,14 +584,14 @@ class Trainer(object):
                     break
 
         end_time = timeit.default_timer()
-        #print('Optimization complete.')
-        #print('Best validation score of %f %% obtained at iteration %i, '
-        #      'with test performance %f %%' %
-        #      (best_validation_loss * 100., best_iter + 1, test_score * 100.))
-        #print >> sys.stderr, ('The code for file ' +
-        #                      os.path.split(__file__)[1] +
-        #                      ' ran for %.2fm' % ((end_time - start_time) / 60.))
-        return
+        if not quiet:
+            print('Optimization complete.')
+            print('Best validation score of %f %% obtained at iteration %i, '
+                  'with test performance %f %%' %
+                  (best_validation_loss * 100., best_iter + 1, test_score * 100.))
+            print >> sys.stderr, ('The code for file ' +
+                                  os.path.split(__file__)[1] +
+                                  ' ran for %.2fm' % ((end_time - start_time) / 60.))
 
     def errors(self, xdata, ydata):
         n_batches = ydata.shape[0]
@@ -654,11 +657,17 @@ def main():
     for i in xrange(len(names)):
         print '  {0:3s} values:         '.format(names[i]), sorted(set([x[i] for x in hypers]))
 
-    k = 3
-    cross_epochs = 2
-    best = crossvalidate(trainerWrapper, xdata_ref, ydata_ref, k, cross_epochs, batch_size, hypers, names)
+    #k = 3
+    #cross_epochs = 2
+    #best = crossvalidate(trainerWrapper, xdata_ref, ydata_ref, k, cross_epochs, batch_size, hypers, names)
+    print 'Skipping cross-validation, using best from last run'
+    best = [0.050, 20, 50]
+    print 'Best hyper parameters:  ', names, ' = ', best
 
     evaluate_lenet5(datasets, epochs, best[0], best[1:], batch_size)
+    classifier = trainerWrapper(0, *best)
+    print '... training'
+    classifier.train(xdata, ydata, epochs, batch_size, valid_set_x=xverify, valid_set_y=yverify, quiet=False)
 
 if __name__ == '__main__':
     logfile = 'console.log'
