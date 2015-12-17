@@ -102,7 +102,7 @@ class Sgd(object):
             )
         max_validation_accuracy = 0
         best_vars = [x.get_value(borrow=False) for x in self.params]
-        early_exit_threshold = 0.01 # Percent above minimum validation accuracy
+        early_exit_threshold = 0.05 # Percentage points above minimum validation accuracy
         validation_check = min(5, epochs / 10) # how often to check
 
         for epoch in xrange(epochs):
@@ -117,11 +117,15 @@ class Sgd(object):
             if epoch % max(1, (epochs / 10)) == 0:
                 sys.stdout.write('.')
                 sys.stdout.flush()
-            if xverify is not None and yverify is not None and epoch % validation_check == 0:
+            if xverify is not None and yverify is not None:
                 predictions = self.predict(xverify)
                 accuracy = np.sum(yverify == predictions) / float(len(yverify))
-                print
-                print '  epoch {0}, verfication accuracy {1:.4%}'.format(epoch, accuracy) 
+                print '  epoch {0}, verfication accuracy {1:.4%}'.format(epoch+1, accuracy) 
+            if xverify is not None and yverify is not None and (epoch+1) % validation_check == 0:
+                #predictions = self.predict(xverify)
+                #accuracy = np.sum(yverify == predictions) / float(len(yverify))
+                #print
+                #print '  epoch {0}, verfication accuracy {1:.4%}'.format(epoch+1, accuracy) 
                 if accuracy > max_validation_accuracy:
                     max_validation_accuracy = accuracy
                     best_vars = [x.get_value(borrow=False) for x in self.params]
@@ -391,7 +395,6 @@ class MlpHiddenLayer(object):
         self.output = activation(x.dot(self.w) + self.b)
         self.params = [self.w, self.b]
 
-
 def mlp_cost(x, y, w, b, C, w_hidden, b_hidden, logreg=None):
     '''
     @param x: input features
@@ -407,7 +410,6 @@ def mlp_cost(x, y, w, b, C, w_hidden, b_hidden, logreg=None):
         C * l2_norm(w, w_hidden)
         + _negative_log_likelihood(x, y, w, b, logreg)
         )
-
 
 class Mlp(Sgd):
     def __init__(self, dim_in, dim_hidden, dim_out, r, C, x=None):
@@ -472,6 +474,71 @@ class Mlp(Sgd):
             name='predict',
             )
         return answers(xdata)
+
+class ConvLayer(object):
+    '''
+    This layer performs convolutions on input images to create output images.
+    This is a linear operation, no non-linearity is introduced in this layer.
+    '''
+
+    def __init__(self, in_shape, in_im_count, out_im_count, filter_shape,
+                 x=None):
+        '''
+        @param in_shape: shape of each input image
+        @param in_im_count: how many images incoming are to be convolved
+            together
+        @param out_im_count: how many convolutions to perform in the input,
+            each one generating a different output image
+        @param filter_shape: shape of the convolution filter.  This should be
+            odd integer shapes.
+        @param x: (theano.tensor.dtensor4) input images to convolve around.
+            The dimensions of this input array is
+               ('x', in_im_count, in_shape[0], in_shape[1])
+            where 'x' represents a broadcastable dimension (i.e. for mini-batch
+            gradient descent).  If this is None, then this layer is considered
+            as the first layer and the layer will create an x variable for you.
+        '''
+        self.in_shape = in_shape
+        self.in_im_count = in_im_count
+        self.out_im_count = out_im_count
+        self.filter_shape = filter_shape
+        self.out_shape = (
+            in_shape[0] - (filter_shape[1] - 1)/2,
+            in_shape[1] - (filter_shape[1] - 1)/2,
+            )
+        pass
+
+class PoolLayer(object):
+    '''
+    This layer performs pooling on input images to create output images.  This
+    is generally a non-linear operation, but you can specify any pooling you
+    want (such as mean or top-left).
+    '''
+
+    def __init__(self, in_shape, in_im_count, pool_shape, x=None, pool_func=T.mean):
+        '''
+        @param in_shape: shape of each input image
+        @param in_im_count: how many images to pool over
+        @param pool_shape: shape of the pooling filter.  This shape should
+            evenly divide the in_shape.
+        @param x: (theano.tensor.dtensor4) input image to pool from.  The
+            dimension of this input array is
+                ('x', in_im_count, in_shape[0], in_shape[1])
+            where 'x' represents a broadcastable dimension (i.e. for min-batch
+            gradient descent).  If this is None, then this layer is considered
+            as the first layer and the layer will create an x variable for you.
+        @param pool_func: function to use when pooling
+        '''
+        self.in_shape = in_shape
+        self.in_im_count = in_im_count
+        self.pool_shape = pool_shape
+        self.pool_func = pool_func
+        self.out_im_count = in_im_count
+        self.out_shape = (
+            in_shape[0] / pool_shape[0],
+            in_shape[1] / pool_shape[1],
+            )
+        pass
 
 def parseArgs(arguments):
     'Parse command-line arguments'

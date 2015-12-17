@@ -81,10 +81,11 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
         xdata, ydata = pickle.load(trainfile)
     xdata = _preprocess(xdata)
     # Split into verify set and data set
-    xverify = xdata[:len(xdata)/5]
-    yverify = ydata[:len(xdata)/5]
-    xdata = xdata[len(xdata)/5:]
-    ydata = ydata[len(xdata)/5:]
+    xlen = len(xdata)
+    xverify = xdata[:xlen/5]
+    yverify = ydata[:xlen/5]
+    xdata = xdata[xlen/5:]
+    ydata = ydata[xlen/5:]
     print 'done'
     kb_used = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     print '  elapsed time:       ', time.clock() - start
@@ -99,7 +100,8 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
     CValues = [0.0001, 0.001, 0.01, 0.1]
     hiddenDims = [1, 20, 40, 80]
 
-    mlpLearner = lambda dim_in, dim_hidden, r, C: Mlp(dim_in, dim_hidden, 2, r, C)
+    mlpLearner = lambda dim_in, dim_hidden, r, C: \
+        Mlp(dim_in, dim_hidden, 2, r, C)
     classifierMap = {
         'MLP': (
             mlpLearner,
@@ -108,14 +110,20 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
             ),
         'SVM': (SVM, list(itertools.product(rValues, CValues)), ['r', 'C']),
         'Perceptron': (Perceptron, [(x,) for x in rValues], ['r']),
-        'AveragedPerceptron': (AveragedPerceptron, [(x,) for x in rValues], ['r']),
-        'LogisticRegression': (LogisticRegression, list(itertools.product([2], rValues, CValues)), ['dim_out', 'r', 'C']),
+        'AveragedPerceptron': (
+            AveragedPerceptron,
+            [(x,) for x in rValues],
+            ['r']
+            ),
+        'LogisticRegression': (
+            LogisticRegression,
+            list(itertools.product([2], rValues, CValues)),
+            ['dim_out', 'r', 'C']
+            ),
         }
     algorithm, hyperparams, hypernames = classifierMap[classifierName]
     if classifierName in ('LogisticRegression', 'MLP'):
         ydata[:] = (ydata + 1) / 2
-    print set(ydata)
-    sys.exit()
     start = time.clock()
     print 'Doing {k}-cross validation sequentially'.format(k=k)
     print '  params:             ', hypernames
