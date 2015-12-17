@@ -101,7 +101,7 @@ class Sgd(object):
                 }
             )
         max_validation_accuracy = 0
-        best_vars = [x.get_value(borrow=False) for x in self.params]
+        best_vars = None
         early_exit_threshold = 0.05 # Percentage points above minimum validation accuracy
         validation_check = min(5, epochs / 10) # how often to check
 
@@ -130,11 +130,14 @@ class Sgd(object):
                     max_validation_accuracy = accuracy
                     best_vars = [x.get_value(borrow=False) for x in self.params]
                 elif max_validation_accuracy - accuracy >= early_exit_threshold:
-                    for i in range(len(self.params)):
-                        self.params[i].get_value(borrow=True)[:] = best_vars[i]
                     print 'Early exit achieved at epoch', epoch
-                    print '  Using earlier weight with smaller validation error', max_validation_accuracy
                     break
+
+        # Use the best found weight vectors instead of the end result
+        if best_vars is not None:
+            print '  Using earlier weight with smaller validation error', max_validation_accuracy
+            for i in range(len(self.params)):
+                self.params[i].get_value(borrow=True)[:] = best_vars[i]
 
 def perceptron_loss(x, y, w, b):
     '''
