@@ -268,7 +268,7 @@ class Trainer(object):
             n_valid_batches = valid_set_x.shape[0]
             n_valid_batches /= batch_size
             xval_shr = theano.shared(valid_set_x, borrow=True)
-            yval_shr = theano.shared(Valid_set_y, borrow=True)
+            yval_shr = theano.shared(valid_set_y, borrow=True)
 
             validate_model = theano.function(
                 [index],
