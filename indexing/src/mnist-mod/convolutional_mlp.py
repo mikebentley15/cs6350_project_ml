@@ -433,7 +433,6 @@ def main():
     best = crossvalidate(trainerWrapper, xdata_ref, ydata_ref, k, cross_epochs, batch_size, hypers, names)
     print 'Best hyper parameters:  ', names, ' = ', best
 
-    evaluate_lenet5(datasets, epochs, best[0], best[1:], batch_size)
     classifier = trainerWrapper(0, *best)
     print '... training'
     classifier.train(xdata, ydata, epochs, batch_size, valid_set_x=xverify,
