@@ -318,7 +318,7 @@ class Trainer(object):
                 iter = (epoch - 1) * n_train_batches + minibatch_index
 
                 cost_ij = train_model(minibatch_index)
-                if (iter+1) % min(100, (n_train_batches+9)/10) == 0:
+                if (minibatch_index+1) % min(100, (n_train_batches+9)/10) == 0:
                     sys.stdout.write('.')
                     sys.stdout.flush()
 
