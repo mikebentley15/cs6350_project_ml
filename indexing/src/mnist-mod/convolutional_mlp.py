@@ -224,6 +224,7 @@ class Trainer(object):
 
         # classify the values of the fully-connected sigmoidal layer
         layer3 = LogisticRegression(input=layer2.output, n_in=500, n_out=10)
+        self._final_layer = layer3
 
         # the cost we minimize during training is the NLL of the model
         self.cost = layer3.negative_log_likelihood(self.y)
@@ -231,9 +232,6 @@ class Trainer(object):
         # create a list of all model parameters to be fit by gradient descent
         self.params = layer3.params + layer2.params + layer1.params + layer0.params
         
-        self._errors = lambda y: layer3.errors(y)
-        self.y_pred = layer3.y_pred
-
         # create a list of gradients for all model parameters
         grads = T.grad(self.cost, self.params)
 
@@ -372,7 +370,7 @@ class Trainer(object):
         index = T.lscalar()  # index to a [mini]batch
         test_model = theano.function(
             [index],
-            self._errors(self.y),
+            self._final_layer._errors(self.y),
             givens={
                 self.x: xdata_shr[index * self.batch_size: (index + 1) * self.batch_size],
                 self.y: ydata_shr[index * self.batch_size: (index + 1) * self.batch_size]
@@ -391,7 +389,7 @@ class Trainer(object):
 
         predict_model = theano.function(
             inputs=[index],
-            outputs=self.y_pred,
+            outputs=self._final_layer.y_pred,
             givens={
                 self.x: xtest_shr[index * self.batch_size: (index + 1) * self.batch_size],
             }
