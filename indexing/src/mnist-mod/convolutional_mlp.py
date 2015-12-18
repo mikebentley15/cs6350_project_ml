@@ -422,6 +422,10 @@ def main():
 
     xdata_ref = xdata.get_value(borrow=True)
     ydata_ref = ydata.eval()
+    xverify_ref = xverify.get_value(borrow=True)
+    yverify_ref = yverify.eval()
+    xtest_ref = xtest.get_value(borrow=True)
+    ytest_ref = ytest.eval()
 
     print '  params:             ', names
     for i in xrange(len(names)):
@@ -435,12 +439,12 @@ def main():
 
     classifier = trainerWrapper(0, *best)
     print '... training'
-    classifier.train(xdata, ydata, epochs, batch_size, valid_set_x=xverify,
-                     valid_set_y=yverify, quiet=False)
+    classifier.train(xdata_ref, ydata_ref, epochs, batch_size, valid_set_x=xverify_ref,
+                     valid_set_y=yverify_ref, quiet=False)
     print '... testing'
-    print '  training accuracy:    ', 1 - classifier.errors(xdata, ydata)
-    print '  validation accuracy:  ', 1 - classifier.errors(xverify, yverify)
-    print '  testing accuracy:     ', 1 - classifier.errors(xtest, ytest)
+    print '  training accuracy:    ', 1 - classifier.errors(xdata_ref, ydata_ref)
+    print '  validation accuracy:  ', 1 - classifier.errors(xverify_ref, yverify_ref)
+    print '  testing accuracy:     ', 1 - classifier.errors(xtest_ref, ytest_ref)
     print '... pickling'
     pickleSafely(classifier, 'classifier', '.pkl.gz')
 
