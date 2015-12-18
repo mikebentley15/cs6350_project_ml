@@ -270,7 +270,7 @@ class Trainer(object):
 
             validate_model = theano.function(
                 [index],
-                self._errors(self.y),
+                self._final_layer.errors(self.y),
                 givens={
                     self.x: xval_shr[index * batch_size: (index + 1) * batch_size],
                     self.y: yval_shr[index * batch_size: (index + 1) * batch_size]
@@ -291,12 +291,12 @@ class Trainer(object):
         # TRAIN MODEL #
         ###############
         # early-stopping parameters
-        patience = 10000  # look as this many examples regardless
+        patience = 100000  # look as this many examples regardless
         patience_increase = 2  # wait this much longer when a new best is
                                # found
         improvement_threshold = 0.995  # a relative improvement of this much is
                                        # considered significant
-        validation_frequency = min(n_train_batches, patience / 2)
+        validation_frequency = min(n_train_batches, patience / (2*batch_size))
                                       # go through this many
                                       # minibatche before checking the network
                                       # on the validation set; in this case we
@@ -312,14 +312,13 @@ class Trainer(object):
 
         while (epoch < epochs) and (not done_looping):
             epoch = epoch + 1
+            print '    epoch {0:3d}:   '.format(epoch),
             for minibatch_index in xrange(n_train_batches):
 
                 iter = (epoch - 1) * n_train_batches + minibatch_index
 
-                #if iter % 100 == 0:
-                #    print 'training @ iter = ', iter
                 cost_ij = train_model(minibatch_index)
-                if (iter+1) % min(100, (epochs*n_train_batches+9)/10) == 0:
+                if (iter+1) % min(100, (n_train_batches+9)/10) == 0:
                     sys.stdout.write('.')
                     sys.stdout.flush()
 
@@ -340,7 +339,7 @@ class Trainer(object):
                         #improve patience if loss improvement is good enough
                         if this_validation_loss < best_validation_loss *  \
                            improvement_threshold:
-                            patience = max(patience, iter * patience_increase)
+                            patience = max(patience, iter * batch_size * patience_increase)
 
                         # save best validation score and iteration number
                         best_validation_loss = this_validation_loss
@@ -370,7 +369,7 @@ class Trainer(object):
         index = T.lscalar()  # index to a [mini]batch
         test_model = theano.function(
             [index],
-            self._final_layer._errors(self.y),
+            self._final_layer.errors(self.y),
             givens={
                 self.x: xdata_shr[index * self.batch_size: (index + 1) * self.batch_size],
                 self.y: ydata_shr[index * self.batch_size: (index + 1) * self.batch_size]
@@ -423,18 +422,31 @@ def main():
     xtest_ref = xtest.get_value(borrow=True)
     ytest_ref = ytest.eval()
 
-    print '  params:             ', names
-    for i in xrange(len(names)):
-        print '  {0:3s} values:         '.format(names[i]), sorted(set([x[i] for x in hypers]))
+    print 'Learning a convolutional neural network (CNN)'
+    print '  dataset:            ', dataset
+    print '  training size:      ', xdata_ref.shape
+    print '  verify size:        ', xverify_ref.shape
+    print '  test size:          ', xtest_ref.shape
 
     k = 3
     cross_epochs = 5
     print '... cross-validating'
+    print '  k:                    ', k
+    print '  cross-val epochs:     ', cross_epochs
+    print '  batch size:           ', batch_size
+    print '  params:               ', names
+    for i in xrange(len(names)):
+        print '  {0:3s} values:         '.format(names[i]), sorted(set([x[i] for x in hypers]))
     best = crossvalidate(trainerWrapper, xdata_ref, ydata_ref, k, cross_epochs, batch_size, hypers, names)
-    print 'Best hyper parameters:  ', names, ' = ', best
+    #print 'Skipping cross-validation.  Using best value from previous run'
+    #best = [0.05, 10, 50]
+    print '  best hyper-params:    ', names, ' = ', best
 
     classifier = trainerWrapper(0, *best)
     print '... training'
+    print '  batch size:           ', batch_size
+    print '  epochs:               ', epochs
+    print '  hyper-params:         ', names, ' = ', best
     classifier.train(xdata_ref, ydata_ref, epochs, batch_size, valid_set_x=xverify_ref,
                      valid_set_y=yverify_ref, quiet=False)
     print '... testing'
@@ -442,7 +454,9 @@ def main():
     print '  validation accuracy:  ', 1 - classifier.errors(xverify_ref, yverify_ref)
     print '  testing accuracy:     ', 1 - classifier.errors(xtest_ref, ytest_ref)
     print '... pickling'
-    pickleSafely(classifier, 'classifier', '.pkl.gz')
+    print '  classifier:           ', classifier
+    filename = pickleSafely(classifier, 'classifier', '.pkl.gz')
+    print '  saved to:             ', filename
 
 def pickleSafely(toPickle, fileBase, ext):
     i = 1
@@ -452,7 +466,8 @@ def pickleSafely(toPickle, fileBase, ext):
         i += 1
         filename = namer(fileBase, i, ext)
     with gzip.open(filename, 'wb') as zipfile:
-        cPickle.dump(toPickle)
+        cPickle.dump(toPickle, zipfile)
+    return filename
 
 if __name__ == '__main__':
     logfile = 'console.log'
