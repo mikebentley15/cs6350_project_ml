@@ -348,7 +348,7 @@ class Trainer(object):
                         best_validation_loss = this_validation_loss
                         best_iter = iter
 
-                if patience <= iter:
+                if patience <= iter * batch_size:
                     done_looping = True
                     break
 
