@@ -292,8 +292,6 @@ class Trainer(object):
         ###############
         # TRAIN MODEL #
         ###############
-        if not quiet:
-            print '... training'
         # early-stopping parameters
         patience = 10000  # look as this many examples regardless
         patience_increase = 2  # wait this much longer when a new best is
