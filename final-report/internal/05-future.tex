@@ -1,6 +1,19 @@
 \section{Future}
 
-For this Project we focused on the handwritten letters "M' or 'F'.  Given more time we would hav eimplement this for race and marital status which are also letters but some of th elabels can be confusing, for example the race "African American" corresponds to 'N' or 'B' while "Hispanics" used labels "M", "Mexican", and Spanish.
-Other potential areas of interest included number labeling.  This would included using the MNIST data to indenify number and extrapolate to identify number greater than 9.  This could be achieved by first building a classifier that attempts to guess how many characters are in a given area, then a following classifier would attempt to find the edges tha the previous classifier predicted.  Finally, after finding these edges padding would be used to get a uniform image area and then use a convolutional neural network on the MNIST data.
+%% [ ] Kernel trick with SVM
+%% [ ] Kernel trick with CNN
+%% [ ] Extract and visualize images from the middle layers of the CNN
+%% [ ] Instead of using the given bounding boxes, use learning to find them
+%% [ ] Better search over hyper-parameter space
+%% [ ] More fields, such as date or race
+%%     - Some entries were rare, and we could have employed cost-sensative learning
+%% [ ] Use ABArb with cost-sensative learning based on experience and proficiency
+
+
+For this Project we focused on the handwritten letters ``M'' or ``F''.  Given more time we would have implemented this for race and marital status which are also letters but some of the labels can be confusing, for example the race ``African American'' corresponds to N or B while ``Hispanics'' used labels ``M'', ``Mexican'', and ``Spanish''.
+
+Other potential areas of interest included number labeling.  This would included using the MNIST data to indenify numbers and extrapolate to identify numbers greater than 9.  This could be achieved by first building a classifier that attempts to guess how many characters are in a given area, then a following classifier would attempt to find the edges that the previous classifier predicted.  Finally, after finding these edges padding would be used to get a uniform image area and then use a convolutional neural network on the MNIST data.
+
 Deep learning has the capability to extract hidden feature sets with each additional nonlinear layer that is added.  We would have experimented how doing a kernel trick on the input pixel data and observed how expanding our features set would have affected the deep-learning set.
-Finally, we observed extreme sensitivity when determining parameters via cross validation for the multilayered perceptron.  They system seems to be unstable due to ta tiny change in the hyperparameters giving a accuracy of 80\% to 50\%.  Given more time we would have done a search on the best hyperparameter and then expanded around the best parameter and then iteratively expand and search till we found the best hyperparameters.
+
+Finally, we observed extreme sensitivity when determining parameters via cross validation for the multilayered perceptron.  The system seems to be unstable due to a tiny change in the hyperparameters giving an accuracy of 80\% to 50\%.  Given more time we would have done a search on the best hyperparameter and then expanded around the best parameter and then iteratively expand and search till we found the best hyperparameters.
