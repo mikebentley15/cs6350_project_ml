@@ -291,7 +291,7 @@ class Trainer(object):
         # TRAIN MODEL #
         ###############
         # early-stopping parameters
-        patience = 100000  # look as this many examples regardless
+        patience = 500000  # look as this many examples regardless
         patience_increase = 2  # wait this much longer when a new best is
                                # found
         improvement_threshold = 0.995  # a relative improvement of this much is
@@ -437,9 +437,9 @@ def main():
     print '  params:               ', names
     for i in xrange(len(names)):
         print '  {0:3s} values:         '.format(names[i]), sorted(set([x[i] for x in hypers]))
-    best = crossvalidate(trainerWrapper, xdata_ref, ydata_ref, k, cross_epochs, batch_size, hypers, names)
-    #print 'Skipping cross-validation.  Using best value from previous run'
-    #best = [0.05, 10, 50]
+    #best = crossvalidate(trainerWrapper, xdata_ref, ydata_ref, k, cross_epochs, batch_size, hypers, names)
+    print 'Skipping cross-validation.  Using best value from previous run'
+    best = [0.05, 20, 50]
     print '  best hyper-params:    ', names, ' = ', best
 
     classifier = trainerWrapper(0, *best)
