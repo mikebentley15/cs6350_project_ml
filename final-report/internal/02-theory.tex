@@ -22,12 +22,12 @@ Early on in the project, we received a recommendation to use Convolutional Neura
 CNNs are an example of multi-layered neural networks.  As can be seen in Figure~\ref{fig:convnet}, CNNs have convolution layers and sub-sampling layers, also known as pooling layers.  The convolution layer uses multiple weight matrices to generate other images.  These are then pooled in order to reduce the dimensionality while at the same time introducing non-linearities.  The type of non-linearity depends on the function used in the pooling layer, such as a max function over a $4 \times 4$ region.  We have a loss function at the end of the neural pipeline, and train the previous layers by performing back-propagation.  This back-propagation is simply gradient descent over all of the weight vectors in the whole network (by doing chain rule).
 
 We studied some example code of CNN on \url{deeplearning.net}.   By reading their code, we made two interesting observations.
-\begin{describe}
+\begin{description}
   \item[Kernels]
     Multiple weight filters are generated at each convolution layer.  How do they not converge to the same weight vector?  We believe this has to do with the space not being convex and having multiple local minima, because of the introduced non-linearities at each layer.  We initialize the weight vectors with random values and hope that they find different local minima.  We treated this value as a hyper-parameter.  We suspect that having this value too high will both cause a significant increase in running time and cause the resultant classifier to overfit.
   \item[Weight bounds]
     The initialization of the weight bounds seemed to be determined
-\end{describe}
+\end{description}
 
 \subsection{Theano}
 
