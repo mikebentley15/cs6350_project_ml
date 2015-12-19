@@ -15,121 +15,12 @@
 \maketitle
 
 
-\section{Problem}
-
-Write a program that reads hand written letters and classify what the letter is.
-The Church of Jesus Christ of Latter Day Saints does extensive work with digitizing census records into an online format.  This is typically done by having people “indexers” look through census records and digitally enter the information that is contained in the written paper. However due to error on the indexer’s part some of these letters/symbols are incorrectly labeled. The program we wrote will attempt to read in the census record images and attempt to correctly classify the image.
-
-
-\section{Explored Ideas}
-
-The first recommendation we received for our project was to look at Convolutional Neural Networks, due to the network's ability to extract features from an image training set. The network, after being trained, then learns character identification. A neural network uniquely learns the properties that differentiate training images. It then looks for similar properties in the target image to be identified. From looking at wikipedia we could see common features for written letter classification included: aspect ratio, percent of pixels above horizontal half point, percent of pixels to right of vertical half point, average distance from image center, reflective at some y axis, reflective at some x axis.  The decision was made to work on neural networks rather than manually labeling features and then attempting to run a learning algorithm, such as average perceptron or SVM.
-
-During the development of our project it was decided that before testing deep learning programs such as multi-layered perceptron or convolutional neural networks that we should try to use the linear classifiers we used in class like Perceptron, Averaged Perceptron, and SVM on the individual pixels as features.  The reason behind this because we are creating a classifier that is either M or F the majority of the M will probably use a pixel that F does not or vice versa.
+\input{internal/01-intro}
+\input{internal/02-theory}
+\input{internal/03-implementation}
+\input{internal/04-results}
+\input{internal/05-future}
+\input{internal/06-conclusion}
 
 
-\section{Ideas from Class}
-
-\subsection{Using Gradient Descent on a loss function}
-Theano has the capability of creating symbolic loss functions and then take the gradient with respect to given variables.  Using this library we implement SVM, Perceptron and Averaged Perceptron as a way to create preliminary classifiers for $F$ and $M$ and to build competence using the Theano Library.
-
-\subsection{What was Learned}
-There is an enormous investment in time to work machine learning project, not only to write your algorithm but the time needed to gather refine and clean your input data.  Below is the time-line that shows what was accomplished for our project:
-
-Below we will talk about the individual phases of our project and what was learned.
-
-\subsubsection{Getting Data}
-It is difficult to get a free data set of an interesting.  This requires that we needed to gather data.  Generally speaking you are required to think of what your project is and how you can get your data.  If it is through a group like the LDS church, non-disclosure agreements are typically used to protect the group’s data.
-
-\subsubsection{XML Parsing}
-The data that was provided by the church was in a series of xml files that contained the data per each record on a census page and a series of images of each census record.  We learned and designed an xml parser that extracted values from nodes, checked headers, and  accessed attributes.  Learning how to parse xml was necessary, the xml files contained the labels and bounding box information for image that pertains to the label.  Three xml files were parsed with different parsing routines.  After parsing the files, statistical analysis was ran on the data that was collected.  Several trends were observed, an important one is that the xml file labeled truth had the highest percent of correct answers whenever there was a conflict with another xml file results. It was concluded that instead of running a majority vote to determine the true label we would use the labels from truth.xml as the labels. We then eliminated/cleaned our data to remove any data that wasn’t complete i.e. we had the labels but not the bounding box where we could extract the subimages.
-
-\subsubsection{Image Processing}
-Analysis was performed on the bounding box data.  It was determined that some of the subimages that would be created from the bounding box would be too small or too big to use.  These records and labels were eliminated, leaving around 70,000 subimages that would form our  test and training set.  Image processing was done to extract the letter according to the bounding box specifications.  Padding was then implemented on the images to get all the images to a uniform size.  The perspective labels were then placed with the newly created subimages.  Please see samples of the extracted and processed sub-images below:
-
-It’s important to note that we have images in our database that may skew the classifier.
-
-For classifier such as SVM or Averaged Perceptron these erroneous images would be seen as noise and would affect the overall classifier's final results.  We are unsure on how badly these erroneous images would affect deep learning algorithms such as MLP or convolutional neural networks.   Perhaps these real world errors will have a more negative effect of overall classifier.
-
-\subsubsection{Learning}
-Theano Library for Python
-Theano is a mathematical toolkit that creates symbolic mathematical functions.  From those functions the gradients can be computed and combined into an executable expression.  Theano uses Tensors which are as dimensional vectors: scalars, vectors, matrices, ect… Using this library we can program symbolic loss functions.  Rather than manually calculate and implement the gradient, we would implement the individual losses and then have Theano calculate the gradients with rules for updating different variables.  Doing this we were able to implement Vanilla Perceptron, Averaged Perceptron, Logistic Regression and SVM.
-
-\subsubsection{MultiLayered Perceptron}
-MultiLayered Perceptron is a feedforward system that connects layers of neurons with a set of inputs and outputs.  Each layer of neurons is fully connected to each other see picture below.
-\begin{equation}
-  p(y = 1 | x)
-    =
-      f(w_2 g(w_1 \cdot x + b_1) + b_2)
-\end{equation}
-Each neuron has an activate function which is an input function.  The output of the activation function is then sent to the next layer of the neural network.  An interesting side note about activation functions, for a neural network bigger than 3 layers nonlinear functions should be used as activation functions otherwise these functions and layers can be reduced to 2 layers through algebra.  With this in mind we chose tanh(x) as our activation function, this could be checked later on by cross validation. The weights of a multilayered perceptron are determined through backpropagation, or the minimization of the error of the entire output based on the weight corresponding to each layer.  We use gradient descent on the error with respect to the activation function to find the new weight values per example.
-Issues we encountered with the MultiLayered Perceptron were:
-The observed instability of hyperparameters
-During cross validation we could see how a slight change in one of our hyper parameters could account for 85\% accuracy to 50\% accuracy.
-The tendency to overfit.
-After a successful hyperparameter selection we trained our classifier with 300 epochs, it was observed that that overall training accuracy of 88\% while the accuracy with the test set was 45\% signalling overfitting.  Upon further research we read: ``In the neural network community the 2 most common methods to avoid overfitting is early stopping and weight decay.''
-We implemented an early out method based on a validation set from our training set.  We would train our Multi Layered Perceptron on our training set but monitor the accuracy with the Validation set every 5 epochs if we observed a decrease accuracy we would stop training the classifier and use the previous weights from the previous sample to then use with our test data.
-
-\subsubsection{Convolutional Neural Network}
-A Convolutional Neural Network is utilized typically for image recognition.  This is done by passing input of pixels into multiple layers of neurons which will extrapolate patterns/features.  The lower layers will find features such as edges, corners, boxes, or lines while higher levels will find higher level features.  Convolutional Networks may also use pooling to combine clusters of the neural network, this is used to help features to be found even with translations between images..  
-To avoid billions of weights due the interconnectivity between the layers of neuron shared weights are used on the convolutional layers.  The highest layers are then clustered together to neurons that form the structure of a MultiLayered Perceptron.  Backpropagation is then used to the find the weights of the high level neurons.  A picture of the process of a Convolutional Neural Network is shown below:
-
-We found examples of using Convolutional Neural Networks on deeplearning.net.  By reading through their code we made 2 interesting observations:
-
-Kernels:  The number of kernels is dependant on the number of local minima the function has.  The more local minima of a function the more kernels to extrapolate all features (although there is no guarantee we will find all features).  The fewers kernels causes the network build to build faster, however, using fewer kernels were shown to reduce the percent of learning per epoch.  Furthermore, using more kernels typically has a lower steady state error than its lower kernel counterpart.  An example from our experiments: we ran our neural network with two sets of kernels $[20:50]$ and $[10:20]$.  The $[10:20]$ network ran through an epoch approximately $4$ times faster than the $[20:50]$ counterpart however around epoch $25$ for $k=[20:50]$ and epoch $100$ for $k=[10:20]$ we observed a difference of $.03\%$ between the accuracy with the test set.  Total error with test set was approximately $1.1\%$.
-
-Weight Bounds:  Determined by activation function for  activation function the bounds should be , where  is the number of units in the -th layer, and  is the number of units in the -th layer.  It is worthy to note that we could have the activation function as a hyper parameter. Other possible activation functions could be sigmoid, arellu, hardlimiter,....ect.  Cross validation could be implemented to determine which activation function works best.
-
-\section{Results}
-From assignment number 2 is that by using the Averaged Perceptron, SVM, and Logistic Regression on data1.10 we were able to get an accuracy of $89.1\%$.  We then attempted the Vanilla Perceptron (using a learning rate of .2) on our data set using the individual pixels as features.  The overall accuracy with the test set was approximately $74\%$.
-When running Cross validation for our Average Perceptron image classifier we got the following results:
-\begin{table}[h]
-  \caption{Average over all cross-validation runs for Averaged Perceptron}
-  \label{tbl:avgPerceptronCrossVal}
-  \begin{center}
-    \begin{tabular}{|c|c|c|}
-      \hline
-        r    & Testing Percent & Training Percent \\
-      \hline
-      0.0001 &      0.814      &     0.817        \\
-      0.001  &      0.802      &      0.806       \\
-      0.010  &      0.813      &      0.816       \\
-      0.100  &      0.799      &      0.804       \\
-      0.500  &      0.813      &      0.817       \\
-      \hline
-    \end{tabular}
-  \end{center}
-\end{table}
-Using the results r=.0001 the total accuracy with our test set =   81.85
-
-For SVM we got the following results:
-\begin{table}[h]
-  \caption{Average over all cross-validation runs for SVM}
-  \label{tbl:svmCrossVal}
-  \begin{center}
-    \begin{tabular}{|c|c|c|c|}
-      \hline
-        r   &    C   & Testing Percent & Training Percent  \\
-      \hline
-      0.010 &  0.000 &      0.747      &      0.757        \\
-      0.010 &  0.100 &      0.762      &      0.769        \\
-      0.100 &  0.001 &      0.778      &      0.781        \\
-      0.100 &  0.010 &      0.789      &      0.796        \\
-      0.500 &  0.100 &      0.775      &      0.782        \\
-      \hline
-    \end{tabular}
-  \end{center}
-\end{table}
-Using the result $r=.1$ and $C= .01$ the total accuracy with our test set = test accuracy: $0.803083291699$
-
-Our Multi-Layered Perceptron:
-
-\section{Future Work}
-For this project we focused on the field of gender due to its simplicity M or F.  Given more time we would have implemented this for race and marital status which are also letters but some of the labels can be confusing for example for the race “African American” labels such a Negro,Black, or N were used, another example for “Hispanics” he had labels M, Mexican, and Spanish.
-
-Other potential areas of interest include number labeling.  This would include using the MNIST data to identify numbers and extrapolate to identify numbers greater than 9.  This could be achieved by first building a classifier that attempts to guess how many characters are in a given area then a following classifier would attempt to find the edges that the previous classifier predicted.  Finally after finding these edges padding would be used to get a uniform image area and then use a convolutional neural network on the MNIST data.
-
-Deep learning has the capability of extracting hidden feature sets with each additional nonlinear layer that is added.  We would have experimented how doing a kernel trick on the inner most function, where the pixel values are read in, and observed how expanding our feature set would have affected the deep-learning set.
-
-We observed extreme sensitivity when determining parameters via cross validation for the multilayered perceptron.  The system seems to be unstable due to a tiny change in the hyperparameters giving an accuracy of 80\% to 50\%  Given more time we would have done a search on the best hyperparameter and then expanded around the best parameter and then iteratively expand and search till we found the best hyperparameters.
 \end{document}
