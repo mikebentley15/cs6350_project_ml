@@ -8,7 +8,15 @@ For handwriting recognition, there are some features that some people have tried
 
 Early on in the project, we received a recommendation to use Convolutional Neural Networks (CNNs).  CNNs have been shown to be very effective in image recognition \cite{korekado2003convolutional} \cite{ciresan2012multi}.  One significant advantage of CNNs is the ability to make the representation \emph{invariant} to small translations of the input, such as for image recognition tasks \cite{Bengio-et-al-2015-Book}.  Another useful aspect of CNNs are their ability to automate feature identification and extraction \cite{Bengio-et-al-2015-Book}.
 
-
+\begin{figure}[h]
+  \centering
+  \includegraphics{images/mylenet.png}
+  \caption{
+    Convolution and pooling layers that make up a CNN followed by a
+    fully-connected Multi-layered Perceptron (MLP).
+    }
+  \label{fig:convnet}
+\end{figure}
 
 CNNs are an example of multi-layered neural networks.
 
