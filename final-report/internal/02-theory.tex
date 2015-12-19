@@ -1,8 +1,8 @@
 \section{Theory}
 
-Our dataset consists of images.  One could use each individual pixel as an individual input feature, but that loses any relative spacial locality information between pixels, and is therefore prone to errors due to location in the image of the object to be identified \cite{?}.  For example, if we want to identify if an image has a circle or not, looking at a set of pixels without knowing where they are located relative to eachother cannot be done in general.
+Our dataset consists of images.  One could use each individual pixel as an individual input feature, but that loses any relative spacial locality information between pixels, and is therefore prone to errors due to location in the image of the object to be identified \cite{lecun1998gradient}.  For example, if we want to identify if an image has a circle or not, looking at a set of pixels without knowing where they are located relative to eachother cannot be done in general.
 
-For handwriting recognition, there are some features that some people have tried to extract to use in a learning algorithm.  These include aspect ratio, percent of thresholded pixels above the horizontal half plane, percent of thresholded pixels to the right of the vertical half plane, and so forth \cite{?}.  It is unknown if these features will be sufficient to classify the characters.
+For handwriting recognition, there are some features that some people have tried to extract to use in a learning algorithm.  These include aspect ratio, percent of thresholded pixels above the horizontal half plane, percent of thresholded pixels to the right of the vertical half plane, and so forth \cite{wikihandwritfeat}.  It is unknown if these features will be sufficient to classify the characters.
 
 \subsection{Convolutional Neural Networks}
 
