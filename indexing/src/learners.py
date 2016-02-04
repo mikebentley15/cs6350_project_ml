@@ -118,18 +118,18 @@ class Sgd(object):
             if epoch % max(1, (epochs / 10)) == 0:
                 sys.stdout.write('.')
                 sys.stdout.flush()
-            print 'cost: ', self.cost.eval({self.x: xdata, self.y: ydata})
+            #print 'cost: ', self.cost.eval({self.x: xdata, self.y: ydata})
             if xverify is not None and yverify is not None:
                 predictions = self.predict(xverify)
                 accuracy = np.sum(yverify == predictions) / float(len(yverify))
-                print '  epoch {0}, verfication accuracy {1:.4%}, cost: {2}'.format(
+                print '  epoch {0}, validation accuracy {1:.4%}, cost: {2}'.format(
                     epoch+1, accuracy, self.cost.eval({self.x: xdata, self.y: ydata})
                     )
             if xverify is not None and yverify is not None and (epoch+1) % validation_check == 0:
                 #predictions = self.predict(xverify)
                 #accuracy = np.sum(yverify == predictions) / float(len(yverify))
                 #print
-                #print '  epoch {0}, verfication accuracy {1:.4%}'.format(epoch+1, accuracy) 
+                #print '  epoch {0}, validation accuracy {1:.4%}'.format(epoch+1, accuracy) 
                 if accuracy > max_validation_accuracy:
                     max_validation_accuracy = accuracy
                     best_vars = [x.get_value(borrow=False) for x in self.params]

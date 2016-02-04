@@ -51,7 +51,7 @@ def main(arguments):
     finally:
         sys.stdout = origstdout
 
-def _preprocess(xdata, reshape=True):
+def preprocessData(xdata, reshape=True):
     '''
     Performs necessary preprocessing to improve learning and to shape the data
     how it needs to be.
@@ -81,7 +81,7 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
     start = time.clock()
     with open(train, 'r') as trainfile:
         xdata, ydata = pickle.load(trainfile)
-    xdata = _preprocess(xdata, reshape=(classifierName != 'ConvNet'))
+    xdata = preprocessData(xdata, reshape=(classifierName != 'ConvNet'))
     # Split into verify set and data set
     xlen = len(xdata)
     xverify = xdata[:xlen/5]
@@ -204,7 +204,7 @@ def _runExperiment(train, test, cross_epochs, epochs, batch_size, classifierName
     start = time.clock()
     with open(test, 'r') as testfile:
         testx, testy = pickle.load(testfile)
-    testx = _preprocess(testx, reshape=(classifierName != 'ConvNet'))
+    testx = preprocessData(testx, reshape=(classifierName != 'ConvNet'))
     if classifierName in ('LogisticRegression', 'MLP'):
         testy -= testy.min()
         testy /= testy.max()
